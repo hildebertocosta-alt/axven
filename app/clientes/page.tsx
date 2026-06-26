@@ -45,7 +45,7 @@ export default function ClientesPage() {
             <p className="mt-1 text-sm text-zinc-400">Visão rápida de performance e status de cada conta.</p>
           </div>
           <div className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-sm text-violet-200">
-            4 contas ativas
+            8 contas ativas
           </div>
         </div>
 

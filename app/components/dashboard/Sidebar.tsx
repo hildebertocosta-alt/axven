@@ -43,7 +43,7 @@ export function Sidebar({ items, activeLabel, status }: SidebarProps) {
             </div>
           </div>
         </div>
-        <p className="mt-3 text-sm text-zinc-400">4 clientes ativos</p>
+        <p className="mt-3 text-sm text-zinc-400">8 clientes ativos</p>
         <div className="mt-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm">
           <div className="flex items-center gap-2 text-emerald-200">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />

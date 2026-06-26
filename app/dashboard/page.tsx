@@ -13,7 +13,7 @@ type DashboardClient = {
   niche: string;
   score: number | null;
   status: string;
-  ctrTrend: number | null;
+  ctrTrend: number | string | null;
   budgetStatus: string;
   alerts: string[];
 };
@@ -57,7 +57,7 @@ export default function DashboardPage() {
       niche: client.niche,
       score: typeof client.opportunityScore === "number" ? client.opportunityScore : null,
       status: client.status,
-      ctrTrend: null,
+      ctrTrend: client.ctrTrend,
       budgetStatus: client.budgetStatus,
       alerts: client.alerts,
     })),
@@ -93,6 +93,10 @@ export default function DashboardPage() {
     { name: "Edson Da Hora", score: 86, color: "#34d399" },
     { name: "Dra. Gabriela Brito", score: 71, color: "#fbbf24" },
     { name: "Face e Corpo", score: null, color: "#9ca3af" },
+    { name: "Ejetec", score: 100, color: "#9ca3af" },
+    { name: "Tritão Náutica", score: 100, color: "#9ca3af" },
+    { name: "Rei da Parmegiana", score: 100, color: "#9ca3af" },
+    { name: "Beatriz Lima Nutri", score: 100, color: "#9ca3af" },
   ], []);
 
   const handleRefresh = async () => {
@@ -247,7 +251,7 @@ export default function DashboardPage() {
                     }`}>
                       Status: {formatStatus(client.status)}
                     </span>
-                    <span className="rounded-full bg-white/5 px-3 py-1">CTR: {client.ctrTrend === null ? "—" : `${client.ctrTrend}%`}</span>
+                    <span className="rounded-full bg-white/5 px-3 py-1">CTR: {typeof client.ctrTrend === "number" ? `${client.ctrTrend}%` : client.ctrTrend ?? "sem dados"}</span>
                     <span className="rounded-full bg-white/5 px-3 py-1">Budget: {client.budgetStatus}</span>
                   </div>
                 </div>
@@ -272,7 +276,7 @@ export default function DashboardPage() {
                   />
                   <Bar dataKey="score" radius={[0, 8, 8, 0]}>
                     {comparisonData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.score === null ? "#71717a" : entry.score >= 80 ? "#34d399" : entry.score >= 60 ? "#fbbf24" : "#f43f5e"} />
+                      <Cell key={entry.name} fill={entry.color ?? (entry.score === null ? "#71717a" : entry.score >= 80 ? "#34d399" : entry.score >= 60 ? "#fbbf24" : "#f43f5e")} />
                     ))}
                   </Bar>
                 </BarChart>
