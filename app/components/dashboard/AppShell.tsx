@@ -5,6 +5,7 @@ import { Topbar } from "./Topbar";
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: "◉" },
   { label: "Clientes", href: "/clientes", icon: "◎" },
+  { label: "Financeiro", href: "/financeiro", icon: "💰" },
   { label: "Criativos", href: "/criativos", icon: "◌" },
   { label: "Relatórios", href: "/relatorios", icon: "◐" },
 ];

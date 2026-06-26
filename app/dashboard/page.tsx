@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 
 import { AppShell } from "../components/dashboard/AppShell";
 import { AiPriorityBanner } from "../components/dashboard/AiPriorityBanner";
 import { alertsFeed, clients as fallbackClients, todayTasks } from "../lib/mockData";
+import { financeClients, getFinanceStatus, type FinanceStatus } from "../lib/financeData";
 
 type DashboardClient = {
   id: string;
@@ -49,6 +50,7 @@ function formatStatus(value: string) {
 
 export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
+  const [financeAlert, setFinanceAlert] = useState<{ type: "warning" | "danger"; count: number } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [dashboardClients, setDashboardClients] = useState<DashboardClient[]>(
     fallbackClients.map((client) => ({
@@ -87,6 +89,30 @@ export default function DashboardPage() {
     if (typeof window === "undefined") return;
     window.localStorage.setItem("growthwave-reminders", JSON.stringify(reminders));
   }, [reminders]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("growthwave-finance-payments");
+    const parsed = stored ? JSON.parse(stored) : {};
+
+    const overdueCount = financeClients.filter((client) => {
+      const status = getFinanceStatus(client.dueDay, Boolean(parsed[client.id]));
+      return status === "Atrasado";
+    }).length;
+
+    const todayCount = financeClients.filter((client) => {
+      const status = getFinanceStatus(client.dueDay, Boolean(parsed[client.id]));
+      return status === "Vence hoje";
+    }).length;
+
+    if (overdueCount > 0) {
+      setFinanceAlert({ type: "danger", count: overdueCount });
+    } else if (todayCount > 0) {
+      setFinanceAlert({ type: "warning", count: todayCount });
+    } else {
+      setFinanceAlert(null);
+    }
+  }, []);
 
   const comparisonData = useMemo(() => [
     { name: "Marquinhos Estilos", score: 95, color: "#34d399" },
