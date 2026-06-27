@@ -1,4 +1,3 @@
-import { AppShell } from "../../components/dashboard/AppShell";
 import { supabase } from "../../lib/supabase";
 import { notFound } from "next/navigation";
 
@@ -22,59 +21,59 @@ export default async function RelatorioPublicoPage({ params }: { params: { id: s
   const isEcommerce = r.tipo === "ecommerce";
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--surface-0)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
-      <div style={{ maxWidth: "420px", width: "100%", fontFamily: "var(--font-sans)" }}>
-        <div style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "16px", overflow: "hidden" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
+      <div style={{ maxWidth: "420px", width: "100%", fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", overflow: "hidden" }}>
 
-          <div style={{ background: "var(--bg-accent)", padding: "1.5rem 1.5rem 1rem" }}>
-            <p style={{ fontSize: "12px", color: "var(--text-accent)", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Growthwave · Relatório semanal</p>
-            <p style={{ fontSize: "22px", fontWeight: 500, color: "var(--text-primary)", margin: 0 }}>{r.cliente_nome}</p>
-            <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0" }}>{formatPeriod(r.periodo_inicio, r.periodo_fim)}</p>
+          <div style={{ background: "#1e1b4b", padding: "1.5rem 1.5rem 1rem" }}>
+            <p style={{ fontSize: "12px", color: "#a5b4fc", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Growthwave · Relatório semanal</p>
+            <p style={{ fontSize: "22px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{r.cliente_nome}</p>
+            <p style={{ fontSize: "13px", color: "#a1a1aa", margin: "4px 0 0" }}>{formatPeriod(r.periodo_inicio, r.periodo_fim)}</p>
           </div>
 
-          <div style={{ padding: "1.25rem 1.5rem", borderBottom: "0.5px solid var(--border)" }}>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "0 0 1rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>Resultados da semana</p>
+          <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #27272a" }}>
+            <p style={{ fontSize: "12px", color: "#71717a", margin: "0 0 1rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>Resultados da semana</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
 
-              <div style={{ background: "var(--surface-2)", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 4px" }}>Investimento</p>
-                <p style={{ fontSize: "20px", fontWeight: 500, color: "var(--text-primary)", margin: 0 }}>{fmt(r.investimento, "currency")}</p>
+              <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Investimento</p>
+                <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.investimento ?? 0, "currency")}</p>
               </div>
 
-              <div style={{ background: "var(--surface-2)", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 4px" }}>Alcance</p>
-                <p style={{ fontSize: "20px", fontWeight: 500, color: "var(--text-primary)", margin: 0 }}>{fmt(r.alcance)}</p>
+              <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Alcance</p>
+                <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.alcance ?? 0)}</p>
               </div>
 
-              <div style={{ background: "var(--surface-2)", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 4px" }}>Cliques</p>
-                <p style={{ fontSize: "20px", fontWeight: 500, color: "var(--text-primary)", margin: 0 }}>{fmt(r.cliques)}</p>
+              <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Cliques</p>
+                <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.cliques ?? 0)}</p>
               </div>
 
               {isEcommerce ? (
                 <>
-                  <div style={{ background: "var(--surface-2)", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                    <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 4px" }}>Pedidos</p>
-                    <p style={{ fontSize: "20px", fontWeight: 500, color: "var(--text-primary)", margin: 0 }}>{fmt(r.pedidos)}</p>
+                  <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                    <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Pedidos</p>
+                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.pedidos ?? 0)}</p>
                   </div>
-                  <div style={{ background: "var(--surface-2)", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                    <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 4px" }}>Receita</p>
-                    <p style={{ fontSize: "20px", fontWeight: 500, color: "var(--text-success)", margin: 0 }}>{fmt(r.receita, "currency")}</p>
+                  <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                    <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Receita</p>
+                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#10b981", margin: 0 }}>{fmt(r.receita ?? 0, "currency")}</p>
                   </div>
-                  <div style={{ background: "var(--bg-success)", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                    <p style={{ fontSize: "11px", color: "var(--text-success)", margin: "0 0 4px" }}>ROI</p>
-                    <p style={{ fontSize: "20px", fontWeight: 500, color: "var(--text-success)", margin: 0 }}>{r.roi ? fmt(r.roi, "roi") : "—"}</p>
+                  <div style={{ background: "#064e3b", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                    <p style={{ fontSize: "11px", color: "#6ee7b7", margin: "0 0 4px" }}>ROI</p>
+                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#10b981", margin: 0 }}>{r.roi ? fmt(r.roi, "roi") : "—"}</p>
                   </div>
                 </>
               ) : (
                 <>
-                  <div style={{ background: "var(--surface-2)", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                    <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 4px" }}>Leads</p>
-                    <p style={{ fontSize: "20px", fontWeight: 500, color: "var(--text-primary)", margin: 0 }}>{fmt(r.leads)}</p>
+                  <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                    <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Leads</p>
+                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.leads ?? 0)}</p>
                   </div>
-                  <div style={{ background: "var(--bg-success)", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                    <p style={{ fontSize: "11px", color: "var(--text-success)", margin: "0 0 4px" }}>Custo por lead</p>
-                    <p style={{ fontSize: "20px", fontWeight: 500, color: "var(--text-success)", margin: 0 }}>{r.cpl ? fmt(r.cpl, "currency") : "—"}</p>
+                  <div style={{ background: "#064e3b", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                    <p style={{ fontSize: "11px", color: "#6ee7b7", margin: "0 0 4px" }}>Custo por lead</p>
+                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#10b981", margin: 0 }}>{r.cpl ? fmt(r.cpl, "currency") : "—"}</p>
                   </div>
                 </>
               )}
@@ -82,8 +81,8 @@ export default async function RelatorioPublicoPage({ params }: { params: { id: s
           </div>
 
           <div style={{ padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>growthwave.contato@gmail.com</p>
-            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>(81) 9 9578-8220</p>
+            <p style={{ fontSize: "11px", color: "#52525b", margin: 0 }}>growthwave.contato@gmail.com</p>
+            <p style={{ fontSize: "11px", color: "#52525b", margin: 0 }}>(81) 9 9578-8220</p>
           </div>
 
         </div>
