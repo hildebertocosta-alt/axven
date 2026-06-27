@@ -1,97 +1,119 @@
-import { supabase } from "../../lib/supabase";
-import { notFound } from "next/navigation";
+'use client'
 
-export const dynamic = "force-dynamic";
+import { useEffect, useState } from 'react'
+import { supabase } from '@/app/lib/supabase'
+import { Check, Copy } from 'lucide-react'
 
-export async function generateStaticParams() {
-  return [];
+interface Relatorio {
+  id: string
+  cliente_nome: string
+  periodo_inicio: string
+  periodo_fim: string
+  conteudo: string
+  criado_em: string
 }
 
-function fmt(value: number, type: "currency" | "number" | "roi" = "number") {
-  if (type === "currency") return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
-  if (type === "roi") return `${value.toFixed(1)}x`;
-  return new Intl.NumberFormat("pt-BR").format(value);
-}
+export default function RelatorioPublicoPage({
+  params,
+}: {
+  params: { id: string }
+}) {
+  const [relatorio, setRelatorio] = useState<Relatorio | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [copiado, setCopiado] = useState(false)
 
-function formatPeriod(inicio: string, fim: string) {
-  const d = (s: string) => new Date(s + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  return `${d(inicio)} a ${d(fim)}`;
-}
+  useEffect(() => {
+    const fetchRelatorio = async () => {
+      
+      const { data, error } = await supabase
+        .from('relatorios')
+        .select('*')
+        .eq('id', params.id)
+        .single()
 
-export default async function RelatorioPublicoPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const { data: r } = await supabase.from("relatorios").select("*").eq("id", id).single();
-  if (!r) notFound();
+      if (!error && data) {
+        setRelatorio(data)
+      }
+      setLoading(false)
+    }
 
-  const isEcommerce = r.tipo === "ecommerce";
+    fetchRelatorio()
+  }, [params.id])
+
+  const copiarLink = async () => {
+    await navigator.clipboard.writeText(window.location.href)
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2000)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500 text-sm">Carregando relatório...</p>
+      </div>
+    )
+  }
+
+  if (!relatorio) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500 text-sm">Relatório não encontrado.</p>
+      </div>
+    )
+  }
+
+  const periodoInicio = new Date(relatorio.periodo_inicio).toLocaleDateString('pt-BR')
+  const periodoFim = new Date(relatorio.periodo_fim).toLocaleDateString('pt-BR')
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
-      <div style={{ maxWidth: "420px", width: "100%", fontFamily: "system-ui, sans-serif" }}>
-        <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", overflow: "hidden" }}>
-
-          <div style={{ background: "#1e1b4b", padding: "1.5rem 1.5rem 1rem" }}>
-            <p style={{ fontSize: "12px", color: "#a5b4fc", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Growthwave · Relatório semanal</p>
-            <p style={{ fontSize: "22px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{r.cliente_nome}</p>
-            <p style={{ fontSize: "13px", color: "#a1a1aa", margin: "4px 0 0" }}>{formatPeriod(r.periodo_inicio, r.periodo_fim)}</p>
-          </div>
-
-          <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #27272a" }}>
-            <p style={{ fontSize: "12px", color: "#71717a", margin: "0 0 1rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>Resultados da semana</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-
-              <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Investimento</p>
-                <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.investimento ?? 0, "currency")}</p>
-              </div>
-
-              <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Alcance</p>
-                <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.alcance ?? 0)}</p>
-              </div>
-
-              <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Cliques</p>
-                <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.cliques ?? 0)}</p>
-              </div>
-
-              {isEcommerce ? (
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">
+                Relatório de Performance
+              </p>
+              <h1 className="text-xl font-semibold text-gray-900">
+                {relatorio.cliente_nome}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                {periodoInicio} — {periodoFim}
+              </p>
+            </div>
+            <button
+              onClick={copiarLink}
+              className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shrink-0"
+            >
+              {copiado ? (
                 <>
-                  <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                    <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Pedidos</p>
-                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.pedidos ?? 0)}</p>
-                  </div>
-                  <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                    <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Receita</p>
-                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#10b981", margin: 0 }}>{fmt(r.receita ?? 0, "currency")}</p>
-                  </div>
-                  <div style={{ background: "#064e3b", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                    <p style={{ fontSize: "11px", color: "#6ee7b7", margin: "0 0 4px" }}>ROI</p>
-                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#10b981", margin: 0 }}>{r.roi ? fmt(r.roi, "roi") : "—"}</p>
-                  </div>
+                  <Check size={15} className="text-green-500" />
+                  <span className="text-green-600">Copiado!</span>
                 </>
               ) : (
                 <>
-                  <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                    <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Leads</p>
-                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.leads ?? 0)}</p>
-                  </div>
-                  <div style={{ background: "#064e3b", borderRadius: "10px", padding: "0.75rem 1rem" }}>
-                    <p style={{ fontSize: "11px", color: "#6ee7b7", margin: "0 0 4px" }}>Custo por lead</p>
-                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#10b981", margin: 0 }}>{r.cpl ? fmt(r.cpl, "currency") : "—"}</p>
-                  </div>
+                  <Copy size={15} />
+                  Copiar link
                 </>
               )}
-            </div>
+            </button>
           </div>
-
-          <div style={{ padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <p style={{ fontSize: "11px", color: "#52525b", margin: 0 }}>growthwave.contato@gmail.com</p>
-            <p style={{ fontSize: "11px", color: "#52525b", margin: 0 }}>(81) 9 9578-8220</p>
-          </div>
-
         </div>
+
+        {/* Conteúdo */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div
+            className="prose prose-sm max-w-none text-gray-700"
+            dangerouslySetInnerHTML={{ __html: relatorio.conteudo }}
+          />
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-gray-400 mt-6">
+          Growthwave · growthwave.contato@gmail.com
+        </p>
       </div>
     </div>
-  );
+  )
 }
