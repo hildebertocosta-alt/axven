@@ -2,9 +2,11 @@ import { supabase } from "../../lib/supabase";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
 export async function generateStaticParams() {
   return [];
 }
+
 function fmt(value: number, type: "currency" | "number" | "roi" = "number") {
   if (type === "currency") return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
   if (type === "roi") return `${value.toFixed(1)}x`;
@@ -16,8 +18,9 @@ function formatPeriod(inicio: string, fim: string) {
   return `${d(inicio)} a ${d(fim)}`;
 }
 
-export default async function RelatorioPublicoPage({ params }: { params: { id: string } }) {
-  const { data: r } = await supabase.from("relatorios").select("*").eq("id", params.id).single();
+export default async function RelatorioPublicoPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { data: r } = await supabase.from("relatorios").select("*").eq("id", id).single();
   if (!r) notFound();
 
   const isEcommerce = r.tipo === "ecommerce";
