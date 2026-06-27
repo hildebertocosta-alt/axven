@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { AppShell } from "../components/dashboard/AppShell";
 import { AiPriorityBanner } from "../components/dashboard/AiPriorityBanner";
-import { todayTasks } from "../lib/mockData";
 import { supabase } from "../lib/supabase";
 
 type DashboardClient = {
@@ -38,6 +37,16 @@ type ReminderItem = {
   concluido: boolean;
 };
 
+type TaskItem = {
+  id: string;
+  titulo: string;
+  prioridade: string;
+  cliente_id: string | null;
+  cliente_nome: string | null;
+  concluido: boolean;
+  criado_em: string;
+};
+
 function formatTime(value: string | null) {
   if (!value) return null;
   const date = new Date(value);
@@ -64,6 +73,27 @@ function formatStatus(value: string) {
   return map[normalized] ?? value;
 }
 
+function sortTasks(tasks: TaskItem[]) {
+  return [...tasks].sort((a, b) => {
+    const priorityRank: Record<string, number> = { urgente: 1, alta: 2, normal: 3 };
+    const priorityA = priorityRank[a.prioridade] ?? 3;
+    const priorityB = priorityRank[b.prioridade] ?? 3;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    return new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime();
+  });
+}
+
+function getPriorityStyles(priority: string) {
+  switch (priority) {
+    case "urgente":
+      return "bg-rose-500";
+    case "alta":
+      return "bg-amber-500";
+    default:
+      return "bg-sky-500";
+  }
+}
+
 export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -72,32 +102,39 @@ export default function DashboardPage() {
   const [campaigns, setCampaigns] = useState<DashboardCampaign[]>([]);
   const [reminderInput, setReminderInput] = useState("");
   const [reminders, setReminders] = useState<ReminderItem[]>([]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskClientId, setTaskClientId] = useState("");
+  const [taskClientName, setTaskClientName] = useState("");
+  const [removingTaskId, setRemovingTaskId] = useState<string | null>(null);
+
+  const loadDashboard = async () => {
+    const [{ data: clientes }, { data: alertas }, { data: campanhas }, { data: lembretes }, { data: tarefas }] = await Promise.all([
+      supabase.from("clientes").select("*").order("nome"),
+      supabase.from("alertas").select("*").order("criado_em", { ascending: false }).limit(5),
+      supabase.from("campanhas").select("*").order("data_inicio", { ascending: false }).limit(5),
+      supabase.from("lembretes").select("*").order("criado_em", { ascending: false }),
+      supabase.from("tarefas").select("*").eq("concluido", false),
+    ]);
+
+    setDashboardClients(
+      (clientes ?? []).map((client: any) => ({
+        id: client.id,
+        name: client.nome,
+        niche: client.nicho ?? "Sem nicho",
+        score: client.score ?? null,
+        status: client.status ?? "verificar",
+        ctrTrend: client.ctr_trend ?? null,
+        budgetStatus: client.budget_status ?? "sem dados",
+      })),
+    );
+    setAlerts((alertas ?? []).map((item: any) => ({ id: item.id, tipo: item.tipo, mensagem: item.mensagem })));
+    setCampaigns((campanhas ?? []).map((item: any) => ({ id: item.id, nome: item.nome, status: item.status ?? "ativo", orcamento_diario: item.orcamento_diario ?? null, conjuntos: item.conjuntos ?? null })));
+    setReminders((lembretes ?? []).map((item: any) => ({ id: item.id, texto: item.texto, concluido: item.concluido })));
+    setTasks(sortTasks((tarefas ?? []) as TaskItem[]));
+  };
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      const [{ data: clientes }, { data: alertas }, { data: campanhas }, { data: lembretes }] = await Promise.all([
-        supabase.from("clientes").select("*").order("nome"),
-        supabase.from("alertas").select("*").order("criado_em", { ascending: false }).limit(5),
-        supabase.from("campanhas").select("*").order("data_inicio", { ascending: false }).limit(5),
-        supabase.from("lembretes").select("*").order("criado_em", { ascending: false }),
-      ]);
-
-      setDashboardClients(
-        (clientes ?? []).map((client: any) => ({
-          id: client.id,
-          name: client.nome,
-          niche: client.nicho ?? "Sem nicho",
-          score: client.score ?? null,
-          status: client.status ?? "verificar",
-          ctrTrend: client.ctr_trend ?? null,
-          budgetStatus: client.budget_status ?? "sem dados",
-        })),
-      );
-      setAlerts((alertas ?? []).map((item: any) => ({ id: item.id, tipo: item.tipo, mensagem: item.mensagem })));
-      setCampaigns((campanhas ?? []).map((item: any) => ({ id: item.id, nome: item.nome, status: item.status ?? "ativo", orcamento_diario: item.orcamento_diario ?? null, conjuntos: item.conjuntos ?? null })));
-      setReminders((lembretes ?? []).map((item: any) => ({ id: item.id, texto: item.texto, concluido: item.concluido })));
-    };
-
     loadDashboard();
   }, []);
 
@@ -114,27 +151,7 @@ export default function DashboardPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const [{ data: clientes }, { data: alertas }, { data: campanhas }, { data: lembretes }] = await Promise.all([
-        supabase.from("clientes").select("*").order("nome"),
-        supabase.from("alertas").select("*").order("criado_em", { ascending: false }).limit(5),
-        supabase.from("campanhas").select("*").order("data_inicio", { ascending: false }).limit(5),
-        supabase.from("lembretes").select("*").order("criado_em", { ascending: false }),
-      ]);
-
-      setDashboardClients(
-        (clientes ?? []).map((client: any) => ({
-          id: client.id,
-          name: client.nome,
-          niche: client.nicho ?? "Sem nicho",
-          score: client.score ?? null,
-          status: client.status ?? "verificar",
-          ctrTrend: client.ctr_trend ?? null,
-          budgetStatus: client.budget_status ?? "sem dados",
-        })),
-      );
-      setAlerts((alertas ?? []).map((item: any) => ({ id: item.id, tipo: item.tipo, mensagem: item.mensagem })));
-      setCampaigns((campanhas ?? []).map((item: any) => ({ id: item.id, nome: item.nome, status: item.status ?? "ativo", orcamento_diario: item.orcamento_diario ?? null, conjuntos: item.conjuntos ?? null })));
-      setReminders((lembretes ?? []).map((item: any) => ({ id: item.id, texto: item.texto, concluido: item.concluido })));
+      await loadDashboard();
       setLastUpdated(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
     } finally {
       setRefreshing(false);
@@ -164,6 +181,52 @@ export default function DashboardPage() {
     await supabase.from("lembretes").delete().eq("id", id);
     setReminders((prev) => prev.filter((item) => item.id !== id));
   };
+
+  const handleCreateTask = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const trimmed = taskTitle.trim();
+    if (!trimmed) return;
+
+    const selectedClient = dashboardClients.find((client) => client.id === taskClientId);
+    const response = await fetch("/api/tarefas/criar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        titulo: trimmed,
+        prioridade: "normal",
+        cliente_id: taskClientId || null,
+        cliente_nome: selectedClient?.name ?? taskClientName || null,
+      }),
+    });
+
+    if (!response.ok) return;
+
+    const payload = await response.json();
+    if (payload?.tarefa) {
+      setTasks((prev) => sortTasks([payload.tarefa, ...prev]));
+      setTaskTitle("");
+      setTaskClientId("");
+      setTaskClientName("");
+    }
+  };
+
+  const handleCompleteTask = async (id: string) => {
+    setRemovingTaskId(id);
+    setTimeout(async () => {
+      const response = await fetch("/api/tarefas/concluir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
+      if (response.ok) {
+        setTasks((prev) => prev.filter((task) => task.id !== id));
+      }
+      setRemovingTaskId(null);
+    }, 180);
+  };
+
+  const pendingTasksCount = tasks.filter((task) => !task.concluido).length;
 
   return (
     <AppShell
@@ -204,21 +267,67 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-zinc-400">Tarefas do dia</p>
                 <h3 className="mt-1 text-xl font-semibold text-white">Ações prioritárias</h3>
               </div>
-              <span className="text-sm text-zinc-500">⏱ 1h35</span>
+              <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-sm text-violet-200">
+                {pendingTasksCount} tarefas pendentes hoje
+              </span>
             </div>
 
+            <form onSubmit={handleCreateTask} className="mt-5 flex flex-col gap-3 md:flex-row">
+              <input
+                value={taskTitle}
+                onChange={(event) => setTaskTitle(event.target.value)}
+                placeholder="Adicionar uma nova tarefa"
+                className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500"
+              />
+              <select
+                value={taskClientId}
+                onChange={(event) => {
+                  const selected = dashboardClients.find((client) => client.id === event.target.value);
+                  setTaskClientId(event.target.value);
+                  setTaskClientName(selected?.name ?? "");
+                }}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+              >
+                <option value="" className="bg-zinc-900 text-white">Selecionar cliente</option>
+                {dashboardClients.map((client) => (
+                  <option key={client.id} value={client.id} className="bg-zinc-900 text-white">
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className="rounded-2xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20"
+              >
+                Adicionar
+              </button>
+            </form>
+
             <ul className="mt-5 space-y-3">
-              {todayTasks.map((task) => (
-                <li key={task.title}>
-                  <Link
-                    href={task.href}
-                    className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300 transition hover:border-violet-500/30 hover:bg-violet-500/10"
+              {tasks.length ? tasks.map((task) => (
+                <li
+                  key={task.id}
+                  className={`flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300 transition ${removingTaskId === task.id ? "opacity-0" : "opacity-100"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`mt-1 h-2.5 w-2.5 rounded-full ${getPriorityStyles(task.prioridade)}`} />
+                    <div>
+                      <p className="font-medium text-white">{task.titulo}</p>
+                      {task.cliente_nome ? (
+                        <span className="mt-1 inline-flex rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-0.5 text-xs text-violet-200">
+                          {task.cliente_nome}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleCompleteTask(task.id)}
+                    className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
                   >
-                    <span className="mt-1 h-2.5 w-2.5 rounded-full bg-violet-400" />
-                    <span>{task.title}</span>
-                  </Link>
+                    ✓ Concluído
+                  </button>
                 </li>
-              ))}
+              )) : <li className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-400">Nenhuma tarefa pendente no momento.</li>}
             </ul>
           </div>
 
