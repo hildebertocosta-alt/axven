@@ -195,7 +195,7 @@ export default function DashboardPage() {
         titulo: trimmed,
         prioridade: "normal",
         cliente_id: taskClientId || null,
-        cliente_nome: selectedClient?.name ?? taskClientName || null,
+        cliente_nome: (selectedClient?.name ?? taskClientName) || null,
       }),
     });
 
