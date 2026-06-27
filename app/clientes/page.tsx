@@ -67,6 +67,7 @@ function slugify(value: string) {
 
 export default async function ClientesPage() {
   const { data: clientes, error } = await supabase.from("clientes").select("*").order("nome");
+  console.log("clientes:", clientes, "error:", error);
   const rows = (clientes ?? []) as ClienteRow[];
 
   return (
