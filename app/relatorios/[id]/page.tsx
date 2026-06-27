@@ -2,7 +2,9 @@ import { supabase } from "../../lib/supabase";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-
+export async function generateStaticParams() {
+  return [];
+}
 function fmt(value: number, type: "currency" | "number" | "roi" = "number") {
   if (type === "currency") return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
   if (type === "roi") return `${value.toFixed(1)}x`;
