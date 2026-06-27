@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "../components/dashboard/AppShell";
-import { financeClients, getFinanceStatus, getFinanceSummary, type FinanceStatus } from "../lib/financeData";
+import { supabase } from "../lib/supabase";
+
+type FinanceStatus = "Pago" | "Atrasado" | "Vence hoje" | "Vence em breve" | "Pendente";
 
 type PaymentItem = {
   id: string;
@@ -13,7 +15,19 @@ type PaymentItem = {
   status: FinanceStatus;
 };
 
-const storageKey = "growthwave-finance-payments";
+type FinanceRow = {
+  id: string;
+  cliente_id: string;
+  valor: number;
+  dia_vencimento: number;
+  status: string;
+  mes_referencia: string;
+};
+
+type ClienteRow = {
+  id: string;
+  nome: string;
+};
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -21,6 +35,15 @@ function formatCurrency(value: number) {
     currency: "BRL",
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function getFinanceStatus(dueDay: number, paid: boolean): FinanceStatus {
+  if (paid) return "Pago";
+  const today = new Date().getDate();
+  if (today > dueDay) return "Atrasado";
+  if (today === dueDay) return "Vence hoje";
+  if (dueDay - today <= 3) return "Vence em breve";
+  return "Pendente";
 }
 
 function getStatusClass(status: FinanceStatus) {
@@ -42,31 +65,41 @@ export default function FinanceiroPage() {
   const [payments, setPayments] = useState<PaymentItem[]>([]);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(storageKey);
-    const parsed = stored ? JSON.parse(stored) : {};
+    const loadPayments = async () => {
+      const [{ data: financeiro }, { data: clientes }] = await Promise.all([
+        supabase.from("financeiro").select("*").order("dia_vencimento"),
+        supabase.from("clientes").select("id,nome"),
+      ]);
 
-    const initialItems = financeClients.map((item) => {
-      const paid = Boolean(parsed[item.id]);
-      return {
-        ...item,
-        paid,
-        status: getFinanceStatus(item.dueDay, paid),
-      };
-    });
+      const clientMap = new Map((clientes ?? []).map((item: ClienteRow) => [item.id, item.nome]));
+      const items = (financeiro ?? []).map((entry: FinanceRow) => {
+        const paid = entry.status === "pago";
+        return {
+          id: entry.id,
+          client: clientMap.get(entry.cliente_id) ?? "Cliente sem nome",
+          value: Number(entry.valor ?? 0),
+          dueDay: entry.dia_vencimento ?? 0,
+          paid,
+          status: getFinanceStatus(entry.dia_vencimento ?? 0, paid),
+        };
+      });
 
-    setPayments(initialItems);
+      setPayments(items);
+    };
+
+    loadPayments();
   }, []);
 
-  useEffect(() => {
-    if (!payments.length) return;
-
-    const snapshot = Object.fromEntries(payments.map((item) => [item.id, item.paid]));
-    window.localStorage.setItem(storageKey, JSON.stringify(snapshot));
+  const summary = useMemo(() => {
+    const toReceive = payments.reduce((sum, item) => sum + (item.paid ? 0 : item.value), 0);
+    const received = payments.reduce((sum, item) => sum + (item.paid ? item.value : 0), 0);
+    const overdue = payments.reduce((sum, item) => sum + (item.status === "Atrasado" ? item.value : 0), 0);
+    return { toReceive, received, overdue };
   }, [payments]);
 
-  const summary = useMemo(() => getFinanceSummary(payments), [payments]);
-
-  const markPaid = (id: string) => {
+  const markPaid = async (id: string) => {
+    const { data } = await supabase.from("financeiro").update({ status: "pago" }).eq("id", id).select("*").single();
+    if (!data) return;
     setPayments((current) =>
       current.map((item) => (item.id === id ? { ...item, paid: true, status: "Pago" } : item)),
     );

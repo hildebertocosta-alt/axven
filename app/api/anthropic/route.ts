@@ -25,11 +25,11 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      text: "Prioridade operacional atualizada com IA. Ajuste criativos, orçamento e respostas para manter o pipeline saudável.",
+      text: "Prioridade operacional atualizada com IA. Compare os dois conjuntos de anúncios da Face e Corpo e priorize o criativo com melhor performance.",
     });
   } catch {
     return NextResponse.json({
-      text: "Prioridade operacional atualizada com IA. Ajuste criativos, orçamento e respostas para manter o pipeline saudável.",
+      text: "Prioridade operacional atualizada com IA. Compare os dois conjuntos de anúncios da Face e Corpo e priorize o criativo com melhor performance.",
     });
   }
 }

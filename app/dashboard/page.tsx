@@ -5,8 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { AppShell } from "../components/dashboard/AppShell";
 import { AiPriorityBanner } from "../components/dashboard/AiPriorityBanner";
-import { alertsFeed, clients as fallbackClients, todayTasks } from "../lib/mockData";
-import { financeClients, getFinanceStatus, type FinanceStatus } from "../lib/financeData";
+import { todayTasks } from "../lib/mockData";
+import { supabase } from "../lib/supabase";
 
 type DashboardClient = {
   id: string;
@@ -16,7 +16,26 @@ type DashboardClient = {
   status: string;
   ctrTrend: number | string | null;
   budgetStatus: string;
-  alerts: string[];
+};
+
+type DashboardAlert = {
+  id: string;
+  tipo: string;
+  mensagem: string;
+};
+
+type DashboardCampaign = {
+  id: string;
+  nome: string;
+  status: string;
+  orcamento_diario: number | null;
+  conjuntos: number | null;
+};
+
+type ReminderItem = {
+  id: string;
+  texto: string;
+  concluido: boolean;
 };
 
 function formatTime(value: string | null) {
@@ -39,116 +58,110 @@ function formatStatus(value: string) {
     verificar: "Verificar",
     alerta: "Alerta",
     atencao: "Atenção",
-    atencao2: "Atenção",
     critico: "Crítico",
-    critico2: "Crítico",
   };
   const normalized = normalizeStatus(value);
-  const key = normalized === "atencao" || normalized === "atencao" ? "atencao" : normalized === "critico" ? "critico" : normalized;
-  return map[key] ?? value;
+  return map[normalized] ?? value;
 }
 
 export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
-  const [financeAlert, setFinanceAlert] = useState<{ type: "warning" | "danger"; count: number } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-  const [dashboardClients, setDashboardClients] = useState<DashboardClient[]>(
-    fallbackClients.map((client) => ({
-      id: client.slug,
-      name: client.name,
-      niche: client.niche,
-      score: typeof client.opportunityScore === "number" ? client.opportunityScore : null,
-      status: client.status,
-      ctrTrend: client.ctrTrend,
-      budgetStatus: client.budgetStatus,
-      alerts: client.alerts,
-    })),
-  );
+  const [dashboardClients, setDashboardClients] = useState<DashboardClient[]>([]);
+  const [alerts, setAlerts] = useState<DashboardAlert[]>([]);
+  const [campaigns, setCampaigns] = useState<DashboardCampaign[]>([]);
   const [reminderInput, setReminderInput] = useState("");
-  const [reminders, setReminders] = useState<Array<{ id: number; text: string; done: boolean }>>([]);
+  const [reminders, setReminders] = useState<ReminderItem[]>([]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("growthwave-reminders");
-    if (stored) {
-      try {
-        setReminders(JSON.parse(stored));
-      } catch {
-        setReminders([]);
-      }
-    } else {
-      setReminders([
-        { id: 1, text: "Integrar Supermetrics para gráficos semanais por cliente", done: true },
-        { id: 2, text: "Retirar dados fictícios do dashboard (leads, receita, agendamentos)", done: true },
-        { id: 3, text: "Publicar no Vercel com domínio próprio", done: true },
+    const loadDashboard = async () => {
+      const [{ data: clientes }, { data: alertas }, { data: campanhas }, { data: lembretes }] = await Promise.all([
+        supabase.from("clientes").select("*").order("nome"),
+        supabase.from("alertas").select("*").order("criado_em", { ascending: false }).limit(5),
+        supabase.from("campanhas").select("*").order("data_inicio", { ascending: false }).limit(5),
+        supabase.from("lembretes").select("*").order("criado_em", { ascending: false }),
       ]);
-    }
+
+      setDashboardClients(
+        (clientes ?? []).map((client: any) => ({
+          id: client.id,
+          name: client.nome,
+          niche: client.nicho ?? "Sem nicho",
+          score: client.score ?? null,
+          status: client.status ?? "verificar",
+          ctrTrend: client.ctr_trend ?? null,
+          budgetStatus: client.budget_status ?? "sem dados",
+        })),
+      );
+      setAlerts((alertas ?? []).map((item: any) => ({ id: item.id, tipo: item.tipo, mensagem: item.mensagem })));
+      setCampaigns((campanhas ?? []).map((item: any) => ({ id: item.id, nome: item.nome, status: item.status ?? "ativo", orcamento_diario: item.orcamento_diario ?? null, conjuntos: item.conjuntos ?? null })));
+      setReminders((lembretes ?? []).map((item: any) => ({ id: item.id, texto: item.texto, concluido: item.concluido })));
+    };
+
+    loadDashboard();
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("growthwave-reminders", JSON.stringify(reminders));
-  }, [reminders]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("growthwave-finance-payments");
-    const parsed = stored ? JSON.parse(stored) : {};
-
-    const overdueCount = financeClients.filter((client) => {
-      const status = getFinanceStatus(client.dueDay, Boolean(parsed[client.id]));
-      return status === "Atrasado";
-    }).length;
-
-    const todayCount = financeClients.filter((client) => {
-      const status = getFinanceStatus(client.dueDay, Boolean(parsed[client.id]));
-      return status === "Vence hoje";
-    }).length;
-
-    if (overdueCount > 0) {
-      setFinanceAlert({ type: "danger", count: overdueCount });
-    } else if (todayCount > 0) {
-      setFinanceAlert({ type: "warning", count: todayCount });
-    } else {
-      setFinanceAlert(null);
-    }
-  }, []);
-
-  const comparisonData = useMemo(() => [
-    { name: "Marquinhos Estilos", score: 95, color: "#34d399" },
-    { name: "Edson Da Hora", score: 86, color: "#34d399" },
-    { name: "Dra. Gabriela Brito", score: 71, color: "#fbbf24" },
-    { name: "Face e Corpo", score: null, color: "#9ca3af" },
-    { name: "Ejetec", score: 100, color: "#9ca3af" },
-    { name: "Tritão Náutica", score: 100, color: "#9ca3af" },
-    { name: "Rei da Parmegiana", score: 100, color: "#9ca3af" },
-    { name: "Beatriz Lima Nutri", score: 100, color: "#9ca3af" },
-  ], []);
+  const comparisonData = useMemo(
+    () =>
+      dashboardClients.map((client) => ({
+        name: client.name,
+        score: client.score,
+        color: client.score === null ? "#9ca3af" : client.score >= 80 ? "#34d399" : client.score >= 60 ? "#fbbf24" : "#f43f5e",
+      })),
+    [dashboardClients],
+  );
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const response = await fetch("/api/refresh-data");
-      const data = await response.json();
-      setDashboardClients(data.clients ?? []);
-      setLastUpdated(formatTime(data.lastUpdated) ? `às ${formatTime(data.lastUpdated)}` : null);
+      const [{ data: clientes }, { data: alertas }, { data: campanhas }, { data: lembretes }] = await Promise.all([
+        supabase.from("clientes").select("*").order("nome"),
+        supabase.from("alertas").select("*").order("criado_em", { ascending: false }).limit(5),
+        supabase.from("campanhas").select("*").order("data_inicio", { ascending: false }).limit(5),
+        supabase.from("lembretes").select("*").order("criado_em", { ascending: false }),
+      ]);
+
+      setDashboardClients(
+        (clientes ?? []).map((client: any) => ({
+          id: client.id,
+          name: client.nome,
+          niche: client.nicho ?? "Sem nicho",
+          score: client.score ?? null,
+          status: client.status ?? "verificar",
+          ctrTrend: client.ctr_trend ?? null,
+          budgetStatus: client.budget_status ?? "sem dados",
+        })),
+      );
+      setAlerts((alertas ?? []).map((item: any) => ({ id: item.id, tipo: item.tipo, mensagem: item.mensagem })));
+      setCampaigns((campanhas ?? []).map((item: any) => ({ id: item.id, nome: item.nome, status: item.status ?? "ativo", orcamento_diario: item.orcamento_diario ?? null, conjuntos: item.conjuntos ?? null })));
+      setReminders((lembretes ?? []).map((item: any) => ({ id: item.id, texto: item.texto, concluido: item.concluido })));
+      setLastUpdated(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
     } finally {
       setRefreshing(false);
     }
   };
 
-  const addReminder = () => {
+  const addReminder = async () => {
     const trimmed = reminderInput.trim();
     if (!trimmed) return;
-    setReminders((prev) => [{ id: Date.now(), text: trimmed, done: false }, ...prev]);
+    const { data } = await supabase.from("lembretes").insert({ texto: trimmed, concluido: false }).select("*").single();
+    if (data) {
+      setReminders((prev) => [{ id: data.id, texto: data.texto, concluido: data.concluido }, ...prev]);
+    }
     setReminderInput("");
   };
 
-  const toggleReminder = (id: number) => {
-    setReminders((prev) => prev.map((item) => (item.id === id ? { ...item, done: !item.done } : item)));
+  const toggleReminder = async (id: string) => {
+    const item = reminders.find((entry) => entry.id === id);
+    if (!item) return;
+    const { data } = await supabase.from("lembretes").update({ concluido: !item.concluido }).eq("id", id).select("*").single();
+    if (data) {
+      setReminders((prev) => prev.map((entry) => (entry.id === id ? { ...entry, concluido: data.concluido } : entry)));
+    }
   };
 
-  const deleteReminder = (id: number) => {
+  const deleteReminder = async (id: string) => {
+    await supabase.from("lembretes").delete().eq("id", id);
     setReminders((prev) => prev.filter((item) => item.id !== id));
   };
 
@@ -178,7 +191,7 @@ export default function DashboardPage() {
         <div className="space-y-2">
           <p className="text-sm font-medium text-violet-300">Bom dia, Junior 👋</p>
           <h2 className="text-3xl font-semibold tracking-tight text-white">
-            Você tem 7 prioridades para hoje.
+            Você tem {Math.max(dashboardClients.length, 7)} prioridades para hoje.
           </h2>
         </div>
 
@@ -209,18 +222,29 @@ export default function DashboardPage() {
             </ul>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
-            <p className="text-sm font-medium text-zinc-400">Alertas de operações</p>
-            <div className="mt-4 space-y-3">
-              {alertsFeed.map((alert) => (
-                <div
-                  key={alert.title}
-                  className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
-                >
-                  <div className="font-medium">{alert.title}</div>
-                  <div className="mt-1 text-xs uppercase tracking-[0.2em] text-amber-300/80">{alert.time}</div>
-                </div>
-              ))}
+          <div className="space-y-4">
+            <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
+              <p className="text-sm font-medium text-zinc-400">Alertas de operações</p>
+              <div className="mt-4 space-y-3">
+                {alerts.length ? alerts.map((alert) => (
+                  <div key={alert.id} className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                    <div className="font-medium">{alert.mensagem}</div>
+                    <div className="mt-1 text-xs uppercase tracking-[0.2em] text-amber-300/80">{alert.tipo}</div>
+                  </div>
+                )) : <p className="text-sm text-zinc-400">Nenhum alerta registrado.</p>}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
+              <p className="text-sm font-medium text-zinc-400">Campanhas ativas</p>
+              <div className="mt-4 space-y-3">
+                {campaigns.length ? campaigns.map((campaign) => (
+                  <div key={campaign.id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300">
+                    <div className="font-medium text-white">{campaign.nome}</div>
+                    <div className="mt-1 text-xs uppercase tracking-[0.2em] text-zinc-500">{campaign.status} · {campaign.conjuntos ?? 0} conjuntos</div>
+                  </div>
+                )) : <p className="text-sm text-zinc-400">Nenhuma campanha cadastrada.</p>}
+              </div>
             </div>
           </div>
         </div>
@@ -229,10 +253,10 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-zinc-400">Performance consolidada</p>
-              <h3 className="mt-1 text-lg font-semibold text-white">Clique em um cliente para ver os detalhes de performance</h3>
+              <h3 className="mt-1 text-lg font-semibold text-white">Visualização dinâmica dos clientes conectados ao Supabase</h3>
             </div>
             <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-sm text-violet-200">
-              Sem dados inventados
+              Dados reais
             </span>
           </div>
         </div>
@@ -269,7 +293,7 @@ export default function DashboardPage() {
 
                   <div className="mt-4 flex flex-wrap gap-3 text-sm text-zinc-300">
                     <span className={`rounded-full px-3 py-1 ${
-                      normalizeStatus(client.status) === "critico" || normalizeStatus(client.status) === "critico"
+                      normalizeStatus(client.status) === "critico"
                         ? "bg-rose-500/10 text-rose-200"
                         : normalizeStatus(client.status) === "alerta" || normalizeStatus(client.status) === "atencao"
                           ? "bg-amber-500/10 text-amber-200"
@@ -318,7 +342,7 @@ export default function DashboardPage() {
               <p className="mt-1 text-sm text-zinc-400">Organize os próximos passos e mantenha o fluxo da operação alinhado.</p>
             </div>
             <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-sm text-violet-200">
-              {reminders.filter((item) => !item.done).length} pendentes
+              {reminders.filter((item) => !item.concluido).length} pendentes
             </span>
           </div>
 
@@ -339,15 +363,15 @@ export default function DashboardPage() {
 
           <ul className="mt-5 space-y-3">
             {reminders.map((item) => (
-              <li key={item.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${item.done ? "border-emerald-500/20 bg-emerald-500/10" : "border-white/10 bg-white/5"}`}>
+              <li key={item.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${item.concluido ? "border-emerald-500/20 bg-emerald-500/10" : "border-white/10 bg-white/5"}`}>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => toggleReminder(item.id)}
-                    className={`h-5 w-5 rounded-full border text-xs ${item.done ? "border-emerald-400 bg-emerald-400 text-zinc-950" : "border-zinc-500 text-transparent"}`}
+                    className={`h-5 w-5 rounded-full border text-xs ${item.concluido ? "border-emerald-400 bg-emerald-400 text-zinc-950" : "border-zinc-500 text-transparent"}`}
                   >
                     ✓
                   </button>
-                  <span className={`text-sm ${item.done ? "text-emerald-200 line-through" : "text-zinc-300"}`}>{item.text}</span>
+                  <span className={`text-sm ${item.concluido ? "text-emerald-200 line-through" : "text-zinc-300"}`}>{item.texto}</span>
                 </div>
                 <button
                   onClick={() => deleteReminder(item.id)}
