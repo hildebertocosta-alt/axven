@@ -19,19 +19,20 @@ export async function POST(req: NextRequest) {
 
   const tipo = cliente.nome === "Rei da Parmegiana" ? "ecommerce" : "lead";
 
+  const params = new URLSearchParams({
+    fields: "spend,reach,clicks,actions,cost_per_action_type,purchase_roas,action_values",
+    time_range: JSON.stringify({ since: periodo_inicio, until: periodo_fim }),
+    access_token: process.env.META_ACCESS_TOKEN!,
+  });
+
   const metaRes = await fetch(
-    `https://graph.facebook.com/v19.0/act_${cliente.meta_account_id}/insights?` +
-    new URLSearchParams({
-      fields: "spend,reach,clicks,actions,cost_per_action_type,purchase_roas,action_values",
-      time_range: JSON.stringify({ since: periodo_inicio, until: periodo_fim }),
-      access_token: process.env.META_ACCESS_TOKEN!,
-    })
+    `https://graph.facebook.com/v19.0/act_${cliente.meta_account_id}/insights?${params}`
   );
 
   const metaData = await metaRes.json();
   const insight = metaData?.data?.[0];
 
-  if (!insight) return NextResponse.json({ error: "Sem dados no período" }, { status: 400 });
+  if (!insight) return NextResponse.json({ error: "Sem dados no período selecionado" }, { status: 400 });
 
   const investimento = parseFloat(insight.spend ?? "0");
   const alcance = parseInt(insight.reach ?? "0");
