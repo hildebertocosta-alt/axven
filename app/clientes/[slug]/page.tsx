@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import { AppShell } from "../../components/dashboard/AppShell";
 import { supabase } from "../../lib/supabase";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type Props = {
   params: Promise<{ slug: string }>;
 };
