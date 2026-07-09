@@ -13,14 +13,6 @@ function saoPauloTodayKey() {
   }).format(new Date());
 }
 
-function saoPauloMonthKey() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-  }).format(new Date());
-}
-
 export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const clienteId = body?.cliente_id;
@@ -49,16 +41,5 @@ export async function PATCH(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  let clienteAtualizado = null;
-  if (mesReferencia === saoPauloMonthKey()) {
-    const { data } = await supabaseAdmin
-      .from("clientes")
-      .update({ status_pagamento: novoStatus })
-      .eq("id", clienteId)
-      .select("id, nome, status_pagamento")
-      .single();
-    clienteAtualizado = data;
-  }
-
-  return NextResponse.json({ financeiro: financeiroAtualizado, cliente: clienteAtualizado });
+  return NextResponse.json({ financeiro: financeiroAtualizado });
 }

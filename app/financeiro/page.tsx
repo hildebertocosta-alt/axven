@@ -357,7 +357,6 @@ export default function FinanceiroPage() {
 
   const updateStatusCobranca = async (clienteId: string, mesReferencia: string, novoStatus: StatusPagamento) => {
     const previousFinanceiro = financeiro;
-    const previousClientes = clientes;
     const novaDataRecebimento = novoStatus === "pago" ? saoPauloTodayKey() : null;
 
     setFinanceiro((current) =>
@@ -367,9 +366,6 @@ export default function FinanceiroPage() {
           : item,
       ),
     );
-    if (mesReferencia === saoPauloMonthKey(new Date())) {
-      setClientes((current) => current.map((item) => (item.id === clienteId ? { ...item, status_pagamento: novoStatus } : item)));
-    }
 
     try {
       const response = await fetch("/api/financeiro/atualizar-status-cobranca", {
@@ -380,7 +376,6 @@ export default function FinanceiroPage() {
 
       if (!response.ok) {
         setFinanceiro(previousFinanceiro);
-        setClientes(previousClientes);
         return;
       }
 
@@ -394,8 +389,20 @@ export default function FinanceiroPage() {
       }
     } catch {
       setFinanceiro(previousFinanceiro);
-      setClientes(previousClientes);
     }
+  };
+
+  const updateStatusPagamentoCliente = async (clienteId: string, novoStatus: StatusPagamento) => {
+    const previous = clientes;
+    setClientes((current) => current.map((item) => (item.id === clienteId ? { ...item, status_pagamento: novoStatus } : item)));
+
+    const response = await fetch("/api/clientes/atualizar-status-pagamento", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: clienteId, status_pagamento: novoStatus }),
+    });
+
+    if (!response.ok) setClientes(previous);
   };
 
   const updateCanal = async (clienteId: string, canal: CanalAquisicao) => {
@@ -654,7 +661,7 @@ export default function FinanceiroPage() {
                         <select
                           value={cliente.status_pagamento}
                           onChange={(event) =>
-                            updateStatusCobranca(cliente.id, selectedMonth, event.target.value as StatusPagamento)
+                            updateStatusPagamentoCliente(cliente.id, event.target.value as StatusPagamento)
                           }
                           className={`rounded-xl border px-3 py-1.5 text-sm font-medium outline-none ${getCobrancaStatusClass(cliente.status_pagamento)}`}
                         >
