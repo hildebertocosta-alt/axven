@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LogoutButton } from "./LogoutButton";
 
 type NavItem = {
   label: string;
@@ -84,6 +85,10 @@ export function Sidebar({ items, activeLabel, status }: SidebarProps) {
           );
         })}
       </nav>
+
+      <div className="mt-auto pt-4">
+        <LogoutButton />
+      </div>
     </aside>
   );
 }
