@@ -27,14 +27,14 @@ export default async function RelatorioPublicoPage({ params }: { params: Promise
   const isEcommerce = r.tipo === "ecommerce";
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: "#2C2C2A", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
       <div style={{ maxWidth: "420px", width: "100%", fontFamily: "system-ui, sans-serif" }}>
-        <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", overflow: "hidden" }}>
+        <div style={{ background: "#3A3A38", border: "1px solid #484846", borderRadius: "16px", overflow: "hidden" }}>
 
-          <div style={{ background: "#1e1b4b", padding: "1.5rem 1.5rem 1rem" }}>
+          <div style={{ background: "#D85A30", padding: "1.5rem 1.5rem 1rem" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
               <div>
-                <p style={{ fontSize: "12px", color: "#a5b4fc", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Growthwave · Relatório semanal</p>
+                <p style={{ fontSize: "12px", color: "#ffffff", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Axven · Relatório semanal</p>
                 <p style={{ fontSize: "22px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{r.cliente_nome}</p>
                 <p style={{ fontSize: "13px", color: "#a1a1aa", margin: "4px 0 0" }}>{formatPeriod(r.periodo_inicio, r.periodo_fim)}</p>
               </div>
@@ -42,32 +42,32 @@ export default async function RelatorioPublicoPage({ params }: { params: Promise
             </div>
           </div>
 
-          <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #27272a" }}>
+          <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #484846" }}>
             <p style={{ fontSize: "12px", color: "#71717a", margin: "0 0 1rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>Resultados da semana</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
 
-              <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+              <div style={{ background: "#484846", borderRadius: "10px", padding: "0.75rem 1rem" }}>
                 <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Investimento</p>
                 <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.investimento ?? 0, "currency")}</p>
               </div>
 
-              <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+              <div style={{ background: "#484846", borderRadius: "10px", padding: "0.75rem 1rem" }}>
                 <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Alcance</p>
                 <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.alcance ?? 0)}</p>
               </div>
 
-              <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+              <div style={{ background: "#484846", borderRadius: "10px", padding: "0.75rem 1rem" }}>
                 <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Cliques</p>
                 <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.cliques ?? 0)}</p>
               </div>
 
               {isEcommerce ? (
                 <>
-                  <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                  <div style={{ background: "#484846", borderRadius: "10px", padding: "0.75rem 1rem" }}>
                     <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Pedidos</p>
                     <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.pedidos ?? 0)}</p>
                   </div>
-                  <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                  <div style={{ background: "#484846", borderRadius: "10px", padding: "0.75rem 1rem" }}>
                     <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Receita</p>
                     <p style={{ fontSize: "20px", fontWeight: 500, color: "#10b981", margin: 0 }}>{fmt(r.receita ?? 0, "currency")}</p>
                   </div>
@@ -78,7 +78,7 @@ export default async function RelatorioPublicoPage({ params }: { params: Promise
                 </>
               ) : (
                 <>
-                  <div style={{ background: "#27272a", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                  <div style={{ background: "#484846", borderRadius: "10px", padding: "0.75rem 1rem" }}>
                     <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Leads</p>
                     <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.leads ?? 0)}</p>
                   </div>
@@ -92,7 +92,7 @@ export default async function RelatorioPublicoPage({ params }: { params: Promise
           </div>
 
           <div style={{ padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <p style={{ fontSize: "11px", color: "#52525b", margin: 0 }}>growthwave.contato@gmail.com</p>
+            <p style={{ fontSize: "11px", color: "#52525b", margin: 0 }}>axven.contato@gmail.com</p>
             <p style={{ fontSize: "11px", color: "#52525b", margin: 0 }}>(81) 9 9578-8220</p>
           </div>
 

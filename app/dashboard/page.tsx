@@ -231,7 +231,7 @@ export default function DashboardPage() {
   return (
     <AppShell
       title="Dashboard"
-      subtitle="Growthwave Marketing Hub"
+      subtitle="Axven Marketing Hub"
       activeLabel="Dashboard"
       actions={
         <button

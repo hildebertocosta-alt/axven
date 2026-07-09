@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Growthwave",
+  title: "Axven",
   description: "Sistema operacional visual para agências de marketing",
 };
 

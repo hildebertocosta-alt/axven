@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -19,12 +20,18 @@ export function Sidebar({ items, activeLabel, status }: SidebarProps) {
   return (
     <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col border-r border-white/10 bg-zinc-950/90 px-5 py-6 backdrop-blur-xl lg:flex">
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-violet-600 text-sm font-semibold text-white">
-          G
+        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-2xl">
+          <Image
+            src="/axven-icon-provisorio.png"
+            alt="Axven"
+            fill
+            sizes="40px"
+            className="object-cover"
+          />
         </div>
         <div>
           <p className="text-sm font-semibold tracking-[0.2em] text-zinc-400">
-            GROWTHWAVE
+            AXVEN
           </p>
           <h2 className="text-lg font-semibold text-white">Marketing Hub</h2>
         </div>
