@@ -7,9 +7,16 @@ export async function POST(req: NextRequest) {
 
   if (!id) return NextResponse.json({ error: "id obrigatorio" }, { status: 400 });
 
+  const dataRecebimento = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
   const { data, error } = await supabaseAdmin
     .from("financeiro")
-    .update({ status: "pago" })
+    .update({ status: "pago", data_recebimento: dataRecebimento })
     .eq("id", id)
     .select("*")
     .single();

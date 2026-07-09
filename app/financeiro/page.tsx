@@ -9,7 +9,7 @@ type FinanceStatus = "Pago" | "Atrasado" | "Vence hoje" | "Vence em breve" | "Pe
 
 type CanalAquisicao = "indicacao" | "instagram" | "whatsapp" | "prospeccao_ativa" | "site" | "google" | "outro";
 
-type StatusPagamento = "em_dia" | "atrasado" | "cancelado";
+type StatusPagamento = "pago" | "em_dia" | "atrasado" | "cancelado";
 
 const CANAL_OPTIONS: { value: CanalAquisicao; label: string }[] = [
   { value: "indicacao", label: "Indicação" },
@@ -21,11 +21,16 @@ const CANAL_OPTIONS: { value: CanalAquisicao; label: string }[] = [
   { value: "outro", label: "Outro" },
 ];
 
-const STATUS_PAGAMENTO_OPTIONS: { value: StatusPagamento; label: string }[] = [
-  { value: "em_dia", label: "Em dia" },
-  { value: "atrasado", label: "Atrasado" },
-  { value: "cancelado", label: "Cancelado" },
+const STATUS_PAGAMENTO_OPTIONS: { value: StatusPagamento; label: string; className: string }[] = [
+  { value: "pago", label: "Pago", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-200" },
+  { value: "em_dia", label: "Em dia", className: "border-sky-500/40 bg-sky-500/10 text-sky-200" },
+  { value: "atrasado", label: "Atrasado", className: "border-amber-500/40 bg-amber-500/10 text-amber-200" },
+  { value: "cancelado", label: "Cancelado", className: "border-rose-500/40 bg-rose-500/10 text-rose-200" },
 ];
+
+function getStatusPagamentoClass(status: StatusPagamento) {
+  return STATUS_PAGAMENTO_OPTIONS.find((option) => option.value === status)?.className ?? "border-white/10 bg-white/5 text-zinc-200";
+}
 
 const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
@@ -37,6 +42,8 @@ type PaymentItem = {
   dueDay: number;
   paid: boolean;
   status: FinanceStatus;
+  dataRecebimento: string | null;
+  recebidoComAtraso: boolean;
 };
 
 type FinanceRow = {
@@ -46,6 +53,7 @@ type FinanceRow = {
   dia_vencimento: number;
   status: string;
   mes_referencia: string;
+  data_recebimento: string | null;
 };
 
 type ClienteRow = {
@@ -134,6 +142,12 @@ function getRenewalInfo(dateStr: string | null): RenewalInfo | null {
     };
   }
   return { label: `Renova em ${diff}d`, className: "border-amber-500/30 bg-amber-500/10 text-amber-200", diff };
+}
+
+function isRecebidoComAtraso(mesReferencia: string, dueDay: number, dataRecebimento: string | null): boolean {
+  if (!dataRecebimento) return false;
+  const dataEsperada = `${mesReferencia}-${String(dueDay).padStart(2, "0")}`;
+  return dataRecebimento > dataEsperada;
 }
 
 function getFinanceStatus(monthKey: string, dueDay: number, paid: boolean): FinanceStatus {
@@ -236,6 +250,8 @@ export default function FinanceiroPage() {
             dueDay: entry.dia_vencimento ?? 0,
             paid,
             status: getFinanceStatus(selectedMonth, entry.dia_vencimento ?? 0, paid),
+            dataRecebimento: entry.data_recebimento,
+            recebidoComAtraso: isRecebidoComAtraso(entry.mes_referencia, entry.dia_vencimento ?? 0, entry.data_recebimento),
           };
         }),
     [financeiro, clienteNomeMap, selectedMonth],
@@ -324,7 +340,11 @@ export default function FinanceiroPage() {
       body: JSON.stringify({ id }),
     });
     if (!response.ok) return;
-    setFinanceiro((current) => current.map((item) => (item.id === id ? { ...item, status: "pago" } : item)));
+    const payload = await response.json().catch(() => null);
+    const dataRecebimento = payload?.financeiro?.data_recebimento ?? saoPauloTodayKey();
+    setFinanceiro((current) =>
+      current.map((item) => (item.id === id ? { ...item, status: "pago", data_recebimento: dataRecebimento } : item)),
+    );
   };
 
   const updateCanal = async (clienteId: string, canal: CanalAquisicao) => {
@@ -596,7 +616,7 @@ export default function FinanceiroPage() {
                         <select
                           value={cliente.status_pagamento}
                           onChange={(event) => updateStatusPagamento(cliente.id, event.target.value as StatusPagamento)}
-                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none"
+                          className={`rounded-xl border px-3 py-1.5 text-sm font-medium outline-none ${getStatusPagamentoClass(cliente.status_pagamento)}`}
                         >
                           {STATUS_PAGAMENTO_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value} className="bg-zinc-900 text-white">
@@ -803,7 +823,14 @@ export default function FinanceiroPage() {
                       </td>
                       <td className="px-4 py-3">
                         {item.paid ? (
-                          <span className="text-sm text-emerald-300">Pago</span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm text-emerald-300">Pago</span>
+                            {item.recebidoComAtraso ? (
+                              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-200">
+                                Recebido com atraso
+                              </span>
+                            ) : null}
+                          </div>
                         ) : (
                           <button
                             onClick={() => markPaid(item.id)}

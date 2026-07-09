@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 
-const STATUS_PAGAMENTO = ["em_dia", "atrasado", "cancelado"];
+const STATUS_PAGAMENTO = ["pago", "em_dia", "atrasado", "cancelado"];
 
 export async function PATCH(req: NextRequest) {
   const body = await req.json();
