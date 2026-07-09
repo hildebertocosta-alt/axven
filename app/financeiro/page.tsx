@@ -9,6 +9,7 @@ type FinanceStatus = "Pago" | "Atrasado" | "Vence hoje" | "Vence em breve" | "Pe
 
 type CanalAquisicao = "indicacao" | "instagram" | "whatsapp" | "prospeccao_ativa" | "site" | "google" | "outro";
 
+type FinanceiroStatus = "pendente" | "pago" | "em_dia" | "atrasado" | "cancelado";
 type StatusPagamento = "pago" | "em_dia" | "atrasado" | "cancelado";
 
 const CANAL_OPTIONS: { value: CanalAquisicao; label: string }[] = [
@@ -21,15 +22,24 @@ const CANAL_OPTIONS: { value: CanalAquisicao; label: string }[] = [
   { value: "outro", label: "Outro" },
 ];
 
-const STATUS_PAGAMENTO_OPTIONS: { value: StatusPagamento; label: string; className: string }[] = [
+const COBRANCA_STATUS_OPTIONS: { value: FinanceiroStatus; label: string; className: string }[] = [
+  { value: "pendente", label: "Pendente", className: "border-white/10 bg-white/5 text-zinc-300" },
   { value: "pago", label: "Pago", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-200" },
   { value: "em_dia", label: "Em dia", className: "border-sky-500/40 bg-sky-500/10 text-sky-200" },
   { value: "atrasado", label: "Atrasado", className: "border-amber-500/40 bg-amber-500/10 text-amber-200" },
   { value: "cancelado", label: "Cancelado", className: "border-rose-500/40 bg-rose-500/10 text-rose-200" },
 ];
 
-function getStatusPagamentoClass(status: StatusPagamento) {
-  return STATUS_PAGAMENTO_OPTIONS.find((option) => option.value === status)?.className ?? "border-white/10 bg-white/5 text-zinc-200";
+const STATUS_PAGAMENTO_OPTIONS = COBRANCA_STATUS_OPTIONS.filter(
+  (option): option is { value: StatusPagamento; label: string; className: string } => option.value !== "pendente",
+);
+
+function getCobrancaStatusClass(status: FinanceiroStatus) {
+  return COBRANCA_STATUS_OPTIONS.find((option) => option.value === status)?.className ?? "border-white/10 bg-white/5 text-zinc-200";
+}
+
+function getCobrancaStatusLabel(status: FinanceiroStatus) {
+  return COBRANCA_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 }
 
 const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -40,8 +50,11 @@ type PaymentItem = {
   client: string;
   value: number;
   dueDay: number;
+  rawStatus: FinanceiroStatus;
+  computedStatus: FinanceStatus;
   paid: boolean;
-  status: FinanceStatus;
+  cancelled: boolean;
+  overdue: boolean;
   dataRecebimento: string | null;
   recebidoComAtraso: boolean;
 };
@@ -124,26 +137,6 @@ function formatMonthShort(monthKey: string) {
   return `${MESES_ABREV[month - 1]}/${String(year).slice(2)}`;
 }
 
-function diffDaysFromToday(dateStr: string) {
-  const today = new Date(`${saoPauloTodayKey()}T00:00:00-03:00`);
-  const target = new Date(`${dateStr}T00:00:00-03:00`);
-  return Math.round((target.getTime() - today.getTime()) / 86400000);
-}
-
-function getRenewalInfo(dateStr: string | null): RenewalInfo | null {
-  if (!dateStr) return null;
-  const diff = diffDaysFromToday(dateStr);
-  if (diff > 30) return null;
-  if (diff <= 0) {
-    return {
-      label: diff === 0 ? "Vence hoje" : `Vencido há ${Math.abs(diff)}d`,
-      className: "border-rose-500/30 bg-rose-500/10 text-rose-200",
-      diff,
-    };
-  }
-  return { label: `Renova em ${diff}d`, className: "border-amber-500/30 bg-amber-500/10 text-amber-200", diff };
-}
-
 function isRecebidoComAtraso(mesReferencia: string, dueDay: number, dataRecebimento: string | null): boolean {
   if (!dataRecebimento) return false;
   const dataEsperada = `${mesReferencia}-${String(dueDay).padStart(2, "0")}`;
@@ -177,6 +170,22 @@ function getStatusClass(status: FinanceStatus) {
     default:
       return "border-zinc-500/20 bg-zinc-500/10 text-zinc-200";
   }
+}
+
+function getRenewalInfo(dateStr: string | null): RenewalInfo | null {
+  if (!dateStr) return null;
+  const today = new Date(`${saoPauloTodayKey()}T00:00:00-03:00`);
+  const target = new Date(`${dateStr}T00:00:00-03:00`);
+  const diff = Math.round((target.getTime() - today.getTime()) / 86400000);
+  if (diff > 30) return null;
+  if (diff <= 0) {
+    return {
+      label: diff === 0 ? "Vence hoje" : `Vencido há ${Math.abs(diff)}d`,
+      className: "border-rose-500/30 bg-rose-500/10 text-rose-200",
+      diff,
+    };
+  }
+  return { label: `Renova em ${diff}d`, className: "border-amber-500/30 bg-amber-500/10 text-amber-200", diff };
 }
 
 export default function FinanceiroPage() {
@@ -230,9 +239,14 @@ export default function FinanceiroPage() {
 
   useEffect(() => {
     (async () => {
+      await fetch("/api/financeiro/gerar-cobrancas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mes_referencia: selectedMonth }),
+      }).catch(() => null);
       await loadAll();
     })();
-  }, []);
+  }, [selectedMonth]);
 
   const clienteNomeMap = useMemo(() => new Map(clientes.map((item) => [item.id, item.nome])), [clientes]);
 
@@ -241,15 +255,23 @@ export default function FinanceiroPage() {
       financeiro
         .filter((entry) => entry.mes_referencia === selectedMonth)
         .map((entry) => {
-          const paid = entry.status === "pago";
+          const rawStatus = ((entry.status || "pendente") as FinanceiroStatus);
+          const paid = rawStatus === "pago";
+          const cancelled = rawStatus === "cancelado";
+          const computedStatus = getFinanceStatus(selectedMonth, entry.dia_vencimento ?? 0, paid);
+          const overdue = rawStatus === "atrasado" || (rawStatus === "pendente" && computedStatus === "Atrasado");
+
           return {
             id: entry.id,
             clienteId: entry.cliente_id,
             client: clienteNomeMap.get(entry.cliente_id) ?? "Cliente sem nome",
             value: entry.valor,
             dueDay: entry.dia_vencimento ?? 0,
+            rawStatus,
+            computedStatus,
             paid,
-            status: getFinanceStatus(selectedMonth, entry.dia_vencimento ?? 0, paid),
+            cancelled,
+            overdue,
             dataRecebimento: entry.data_recebimento,
             recebidoComAtraso: isRecebidoComAtraso(entry.mes_referencia, entry.dia_vencimento ?? 0, entry.data_recebimento),
           };
@@ -263,9 +285,9 @@ export default function FinanceiroPage() {
   );
 
   const summary = useMemo(() => {
-    const toReceive = payments.reduce((sum, item) => sum + (item.paid ? 0 : item.value), 0);
+    const toReceive = payments.reduce((sum, item) => sum + (item.paid || item.cancelled ? 0 : item.value), 0);
     const received = payments.reduce((sum, item) => sum + (item.paid ? item.value : 0), 0);
-    const overdue = payments.reduce((sum, item) => sum + (item.status === "Atrasado" ? item.value : 0), 0);
+    const overdue = payments.reduce((sum, item) => sum + (item.overdue ? item.value : 0), 0);
     const receita = payments.reduce((sum, item) => sum + item.value, 0);
     const totalDespesas = despesasMes.reduce((sum, item) => sum + item.valor, 0);
     return { toReceive, received, overdue, receita, totalDespesas, margem: receita - totalDespesas };
@@ -333,18 +355,47 @@ export default function FinanceiroPage() {
 
   const isCurrentMonth = selectedMonth === saoPauloMonthKey(new Date());
 
-  const markPaid = async (id: string) => {
-    const response = await fetch("/api/financeiro/marcar-pago", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    if (!response.ok) return;
-    const payload = await response.json().catch(() => null);
-    const dataRecebimento = payload?.financeiro?.data_recebimento ?? saoPauloTodayKey();
+  const updateStatusCobranca = async (clienteId: string, mesReferencia: string, novoStatus: StatusPagamento) => {
+    const previousFinanceiro = financeiro;
+    const previousClientes = clientes;
+    const novaDataRecebimento = novoStatus === "pago" ? saoPauloTodayKey() : null;
+
     setFinanceiro((current) =>
-      current.map((item) => (item.id === id ? { ...item, status: "pago", data_recebimento: dataRecebimento } : item)),
+      current.map((item) =>
+        item.cliente_id === clienteId && item.mes_referencia === mesReferencia
+          ? { ...item, status: novoStatus, data_recebimento: novaDataRecebimento }
+          : item,
+      ),
     );
+    if (mesReferencia === saoPauloMonthKey(new Date())) {
+      setClientes((current) => current.map((item) => (item.id === clienteId ? { ...item, status_pagamento: novoStatus } : item)));
+    }
+
+    try {
+      const response = await fetch("/api/financeiro/atualizar-status-cobranca", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cliente_id: clienteId, mes_referencia: mesReferencia, novo_status: novoStatus }),
+      });
+
+      if (!response.ok) {
+        setFinanceiro(previousFinanceiro);
+        setClientes(previousClientes);
+        return;
+      }
+
+      const payload = await response.json();
+      if (payload?.financeiro) {
+        const atualizado = { ...payload.financeiro, valor: Number(payload.financeiro.valor ?? 0) };
+        setFinanceiro((current) => {
+          const existe = current.some((item) => item.id === atualizado.id);
+          return existe ? current.map((item) => (item.id === atualizado.id ? atualizado : item)) : [...current, atualizado];
+        });
+      }
+    } catch {
+      setFinanceiro(previousFinanceiro);
+      setClientes(previousClientes);
+    }
   };
 
   const updateCanal = async (clienteId: string, canal: CanalAquisicao) => {
@@ -355,19 +406,6 @@ export default function FinanceiroPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: clienteId, canal_aquisicao: canal }),
-    });
-
-    if (!response.ok) setClientes(previous);
-  };
-
-  const updateStatusPagamento = async (clienteId: string, status: StatusPagamento) => {
-    const previous = clientes;
-    setClientes((current) => current.map((item) => (item.id === clienteId ? { ...item, status_pagamento: status } : item)));
-
-    const response = await fetch("/api/clientes/atualizar-status-pagamento", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: clienteId, status_pagamento: status }),
     });
 
     if (!response.ok) setClientes(previous);
@@ -615,8 +653,10 @@ export default function FinanceiroPage() {
                       <td className="px-4 py-3">
                         <select
                           value={cliente.status_pagamento}
-                          onChange={(event) => updateStatusPagamento(cliente.id, event.target.value as StatusPagamento)}
-                          className={`rounded-xl border px-3 py-1.5 text-sm font-medium outline-none ${getStatusPagamentoClass(cliente.status_pagamento)}`}
+                          onChange={(event) =>
+                            updateStatusCobranca(cliente.id, selectedMonth, event.target.value as StatusPagamento)
+                          }
+                          className={`rounded-xl border px-3 py-1.5 text-sm font-medium outline-none ${getCobrancaStatusClass(cliente.status_pagamento)}`}
                         >
                           {STATUS_PAGAMENTO_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value} className="bg-zinc-900 text-white">
@@ -793,7 +833,7 @@ export default function FinanceiroPage() {
             <div>
               <h3 className="text-lg font-semibold text-white">Cobranças do mês</h3>
               <p className="mt-1 text-sm text-zinc-400">
-                Status calculado automaticamente pela data (indicativo). O status oficial fica na tabela &ldquo;MRR por cliente&rdquo; acima.
+                Gerado automaticamente para todo cliente ativo. O status aqui e o da tabela &ldquo;MRR por cliente&rdquo; são o mesmo dado.
               </p>
             </div>
           </div>
@@ -817,28 +857,44 @@ export default function FinanceiroPage() {
                       <td className="px-4 py-3">{formatCurrency(item.value)}</td>
                       <td className="px-4 py-3">{item.dueDay}</td>
                       <td className="px-4 py-3">
-                        <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusClass(item.status)}`}>
-                          {item.status}
-                        </span>
+                        {item.rawStatus === "pendente" ? (
+                          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusClass(item.computedStatus)}`}>
+                            {item.computedStatus}
+                          </span>
+                        ) : (
+                          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${getCobrancaStatusClass(item.rawStatus)}`}>
+                            {getCobrancaStatusLabel(item.rawStatus)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
-                        {item.paid ? (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm text-emerald-300">Pago</span>
-                            {item.recebidoComAtraso ? (
-                              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-200">
-                                Recebido com atraso
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => markPaid(item.id)}
-                            className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
+                        <div className="flex flex-col gap-1.5">
+                          <select
+                            value={item.rawStatus === "pendente" ? "" : item.rawStatus}
+                            onChange={(event) =>
+                              updateStatusCobranca(item.clienteId, selectedMonth, event.target.value as StatusPagamento)
+                            }
+                            className={`rounded-xl border px-3 py-1.5 text-sm font-medium outline-none ${
+                              item.rawStatus === "pendente" ? "border-white/10 bg-white/5 text-zinc-300" : getCobrancaStatusClass(item.rawStatus)
+                            }`}
                           >
-                            Marcar como pago
-                          </button>
-                        )}
+                            {item.rawStatus === "pendente" ? (
+                              <option value="" disabled className="bg-zinc-900 text-white">
+                                Marcar como recebido
+                              </option>
+                            ) : null}
+                            {STATUS_PAGAMENTO_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value} className="bg-zinc-900 text-white">
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          {item.recebidoComAtraso ? (
+                            <span className="w-fit rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-200">
+                              Recebido com atraso
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))
