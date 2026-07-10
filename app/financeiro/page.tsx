@@ -194,7 +194,9 @@ export default function FinanceiroPage() {
   const [clientes, setClientes] = useState<ClienteRow[]>([]);
   const [despesas, setDespesas] = useState<DespesaRow[]>([]);
 
-  const [showDespesaForm, setShowDespesaForm] = useState(false);
+  const [showDespesaForm, setShowDespesaForm] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("nova_despesa") === "1",
+  );
   const [despesaDescricao, setDespesaDescricao] = useState("");
   const [despesaValor, setDespesaValor] = useState("");
   const [despesaCategoria, setDespesaCategoria] = useState("");

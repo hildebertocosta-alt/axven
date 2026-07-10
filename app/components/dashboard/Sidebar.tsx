@@ -40,7 +40,7 @@ export function Sidebar({ items, activeLabel, status }: SidebarProps) {
 
       <div className="mb-6 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-500/20 text-sm font-semibold text-violet-200">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#D85A30]/20 text-sm font-semibold text-[#f0a480]">
             J
           </div>
           <div>
@@ -51,15 +51,8 @@ export function Sidebar({ items, activeLabel, status }: SidebarProps) {
             </div>
           </div>
         </div>
-        <p className="mt-3 text-sm text-zinc-400">8 clientes ativos</p>
-        <div className="mt-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm">
-          <div className="flex items-center gap-2 text-emerald-200">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-            Meta Ads: conectado
-          </div>
-          <div className="mt-1 text-zinc-400">
-            Última atualização: {status?.lastUpdated ?? "—"}
-          </div>
+        <div className="mt-3 text-xs text-zinc-500">
+          Última atualização: {status?.lastUpdated ?? "—"}
         </div>
       </div>
 
@@ -73,7 +66,7 @@ export function Sidebar({ items, activeLabel, status }: SidebarProps) {
               href={item.href}
               className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm transition ${
                 isActive
-                  ? "bg-white/10 text-white shadow-lg shadow-cyan-500/10"
+                  ? "bg-[#D85A30]/15 text-white shadow-lg shadow-[#D85A30]/10"
                   : "text-zinc-400 hover:bg-white/5 hover:text-white"
               }`}
             >

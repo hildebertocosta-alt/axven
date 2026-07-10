@@ -21,25 +21,29 @@ function formatDate(value: string) {
 export default function RelatoriosPage() {
   const [clientes, setClientes] = useState<ClienteRow[]>([]);
   const [relatorios, setRelatorios] = useState<RelatorioRow[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("gerar") === "1",
+  );
   const [selectedClienteId, setSelectedClienteId] = useState("");
   const [periodoInicio, setPeriodoInicio] = useState("");
   const [periodoFim, setPeriodoFim] = useState("");
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  const loadRelatorios = async () => {
+    const { data } = await supabase.from("relatorios").select("id,cliente_nome,periodo_inicio,periodo_fim,criado_em").order("criado_em", { ascending: false });
+    setRelatorios(data ?? []);
+  };
+
   useEffect(() => {
     supabase.from("clientes").select("id,nome").order("nome").then(({ data }) => {
       setClientes(data ?? []);
       if (data?.[0]) setSelectedClienteId(data[0].id);
     });
-    loadRelatorios();
+    (async () => {
+      await loadRelatorios();
+    })();
   }, []);
-
-  const loadRelatorios = async () => {
-    const { data } = await supabase.from("relatorios").select("id,cliente_nome,periodo_inicio,periodo_fim,criado_em").order("criado_em", { ascending: false });
-    setRelatorios(data ?? []);
-  };
 
   const handleGerar = async (event: React.FormEvent) => {
     event.preventDefault();
