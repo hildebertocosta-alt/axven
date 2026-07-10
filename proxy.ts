@@ -7,7 +7,8 @@ const PUBLIC_API_PREFIXES = ["/api/auth/"];
 function isPublicPath(pathname: string) {
   if (pathname === "/login") return true;
   // /crm/* tem seu próprio sistema de autenticação (portal do cliente), tratado abaixo.
-  if (pathname.startsWith("/crm")) return true;
+  // Comparação exata + prefixo com barra, para não liberar por engano algo como /crm-leads.
+  if (pathname === "/crm" || pathname.startsWith("/crm/")) return true;
   // /relatorios/[id] é o link público de relatório compartilhado com o cliente.
   if (/^\/relatorios\/[^/]+$/.test(pathname)) return true;
   if (PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true;
