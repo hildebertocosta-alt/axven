@@ -9,6 +9,7 @@ const navItems = [
   { label: "Relatórios", href: "/relatorios", icon: "◐" },
   { label: "Agenda", href: "/dashboard/agenda", icon: "📅" },
   { label: "CRM", href: "/pipeline", icon: "🧲" },
+  { label: "Integrações", href: "/integracoes", icon: "🔌" },
 ];
 
 type AppShellProps = {

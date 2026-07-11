@@ -14,14 +14,23 @@ export async function POST(req: NextRequest) {
 
   const tipo = cliente.nome === "Rei da Parmegiana" ? "ecommerce" : "lead";
 
+  const { data: conexaoMeta } = await supabaseAdmin
+    .from("integracao_meta")
+    .select("access_token")
+    .order("conectado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const accessToken = conexaoMeta?.access_token ?? process.env.META_ACCESS_TOKEN!;
+
   const params = new URLSearchParams({
     fields: "spend,reach,clicks,actions,cost_per_action_type,purchase_roas,action_values",
     time_range: JSON.stringify({ since: periodo_inicio, until: periodo_fim }),
-    access_token: process.env.META_ACCESS_TOKEN!,
+    access_token: accessToken,
   });
 
   const metaRes = await fetch(
-    `https://graph.facebook.com/v19.0/act_${cliente.meta_account_id}/insights?${params}`
+    `https://graph.facebook.com/v21.0/act_${cliente.meta_account_id}/insights?${params}`
   );
 
   const metaData = await metaRes.json();
