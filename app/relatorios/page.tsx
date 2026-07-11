@@ -13,8 +13,28 @@ type RelatorioRow = {
   criado_em: string;
 };
 
+type MetricaCliente = {
+  cliente_id: string;
+  cliente_nome: string;
+  tipo?: "ecommerce" | "lead";
+  investimento?: number;
+  alcance?: number;
+  cliques?: number;
+  leads?: number;
+  cpl?: number | null;
+  pedidos?: number;
+  receita?: number;
+  roi?: number | null;
+  semConta?: boolean;
+  erro?: string;
+};
+
 function formatDate(value: string) {
   return new Date(value + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 }
 
 export default function RelatoriosPage() {
@@ -29,6 +49,10 @@ export default function RelatoriosPage() {
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  const [metricas, setMetricas] = useState<MetricaCliente[]>([]);
+  const [metricasConectado, setMetricasConectado] = useState(true);
+  const [loadingMetricas, setLoadingMetricas] = useState(true);
+
   const loadRelatorios = async () => {
     const response = await fetch("/api/relatorios/list");
     const { relatorios: data, clientes: clientesData } = await response.json();
@@ -41,6 +65,14 @@ export default function RelatoriosPage() {
     (async () => {
       await loadRelatorios();
     })();
+
+    fetch("/api/relatorios/metricas-semana")
+      .then((res) => res.json())
+      .then((payload) => {
+        setMetricasConectado(payload?.conectado ?? false);
+        setMetricas(payload?.metricas ?? []);
+      })
+      .finally(() => setLoadingMetricas(false));
   }, []);
 
   const handleGerar = async (event: React.FormEvent) => {
@@ -79,6 +111,76 @@ export default function RelatoriosPage() {
           <button onClick={() => setIsModalOpen(true)} className="rounded-2xl border border-violet-500/20 bg-violet-500/10 px-4 py-2 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20">
             Gerar relatório semanal
           </button>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold text-white">Últimos 7 dias</h3>
+            {!metricasConectado && !loadingMetricas ? (
+              <Link
+                href="/integracoes"
+                className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
+              >
+                Conectar Meta Ads →
+              </Link>
+            ) : null}
+          </div>
+
+          {loadingMetricas ? (
+            <p className="mt-3 text-sm text-zinc-400">Carregando métricas...</p>
+          ) : !metricasConectado ? (
+            <div className="mt-3 rounded-3xl border border-dashed border-white/10 bg-zinc-950/80 p-6 text-sm text-zinc-400">
+              Nenhuma conexão Meta ativa. Conecte na aba Integrações pra ver as métricas da semana aqui.
+            </div>
+          ) : (
+            <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {metricas.map((m) => (
+                <div key={m.cliente_id} className="rounded-3xl border border-white/10 bg-zinc-950/80 p-5">
+                  <p className="font-semibold text-white">{m.cliente_nome}</p>
+
+                  {m.semConta ? (
+                    <p className="mt-3 text-sm text-zinc-500">Sem conta de anúncio vinculada.</p>
+                  ) : m.erro ? (
+                    <p className="mt-3 text-sm text-amber-300">{m.erro}</p>
+                  ) : (
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-zinc-500">Investimento</p>
+                        <p className="font-medium text-white">{formatCurrency(m.investimento ?? 0)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-zinc-500">Alcance</p>
+                        <p className="font-medium text-white">{new Intl.NumberFormat("pt-BR").format(m.alcance ?? 0)}</p>
+                      </div>
+                      {m.tipo === "ecommerce" ? (
+                        <>
+                          <div>
+                            <p className="text-xs text-zinc-500">Pedidos</p>
+                            <p className="font-medium text-white">{m.pedidos ?? 0}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-zinc-500">ROI</p>
+                            <p className="font-medium text-emerald-300">{m.roi ? `${m.roi.toFixed(1)}x` : "—"}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <p className="text-xs text-zinc-500">Leads</p>
+                            <p className="font-medium text-white">{m.leads ?? 0}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-zinc-500">Custo por lead</p>
+                            <p className="font-medium text-emerald-300">{m.cpl ? formatCurrency(m.cpl) : "—"}</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {feedback && (
