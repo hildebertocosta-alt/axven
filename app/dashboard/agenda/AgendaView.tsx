@@ -1,6 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import listPlugin from "@fullcalendar/list";
+import interactionPlugin from "@fullcalendar/interaction";
+import ptBrLocale from "@fullcalendar/core/locales/pt-br";
+import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
+import type {
+  EventClickArg,
+  EventContentArg,
+  EventDropArg,
+  EventInput,
+} from "@fullcalendar/core";
 
 export type Compromisso = {
   id: string;
@@ -31,66 +44,30 @@ function saoPauloTimeKey(date: Date) {
   }).format(date);
 }
 
-function dateKey(iso: string) {
-  return saoPauloDateKey(new Date(iso));
-}
-
-function localDateKey(date: Date) {
-  return saoPauloDateKey(date);
-}
-
-function formatDiaLabel(key: string) {
-  const now = new Date();
-  const amanha = new Date(now);
-  amanha.setDate(amanha.getDate() + 1);
-
-  if (key === localDateKey(now)) return "Hoje";
-  if (key === localDateKey(amanha)) return "Amanhã";
-
-  const date = new Date(`${key}T00:00:00-03:00`);
-  const label = date.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
-
-function formatHora(iso: string) {
-  const date = new Date(iso);
-  return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
-}
-
-function formatDuracao(minutos: number | null) {
-  if (!minutos) return null;
-  if (minutos < 60) return `${minutos} min`;
-  const horas = Math.floor(minutos / 60);
-  const resto = minutos % 60;
-  return resto ? `${horas}h ${resto}min` : `${horas}h`;
-}
-
-function sortCompromissos(items: Compromisso[]) {
-  return [...items].sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime());
-}
-
-function groupByDay(items: Compromisso[]) {
-  const groups = new Map<string, Compromisso[]>();
-  for (const item of items) {
-    const key = dateKey(item.data_hora);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(item);
-  }
-  return [...groups.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-}
-
-const tipoBadge: Record<Compromisso["tipo"], { label: string; className: string }> = {
+const tipoConfig: Record<
+  Compromisso["tipo"],
+  { label: string; badgeClass: string; bg: string; border: string; text: string }
+> = {
   call_prospeccao: {
     label: "Call de prospecção",
-    className: "border-[#D85A30]/40 bg-[#D85A30]/15 text-[#f0a480]",
+    badgeClass: "border-[#D85A30]/40 bg-[#D85A30]/15 text-[#f0a480]",
+    bg: "#D85A30",
+    border: "#D85A30",
+    text: "#ffffff",
   },
   pessoal: {
     label: "Pessoal",
-    className: "border-white/10 bg-[#2C2C2A] text-zinc-300",
+    badgeClass: "border-white/10 bg-[#2C2C2A] text-zinc-300",
+    bg: "#3f3f46",
+    border: "#52525b",
+    text: "#f4f4f5",
   },
   reuniao_cliente: {
     label: "Reunião com cliente",
-    className: "border-indigo-500/40 bg-indigo-500/15 text-indigo-200",
+    badgeClass: "border-indigo-500/40 bg-indigo-500/15 text-indigo-200",
+    bg: "#4f46e5",
+    border: "#4f46e5",
+    text: "#ffffff",
   },
 };
 
@@ -98,6 +75,7 @@ export function AgendaView({ initialCompromissos }: { initialCompromissos: Compr
   const [compromissos, setCompromissos] = useState<Compromisso[]>(initialCompromissos);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -107,7 +85,31 @@ export function AgendaView({ initialCompromissos }: { initialCompromissos: Compr
   const [duracao, setDuracao] = useState("60");
   const [tipo, setTipo] = useState<Compromisso["tipo"]>("pessoal");
 
-  const grupos = useMemo(() => groupByDay(sortCompromissos(compromissos)), [compromissos]);
+  const events: EventInput[] = useMemo(
+    () =>
+      compromissos.map((item) => {
+        const cfg = tipoConfig[item.tipo];
+        const start = new Date(item.data_hora);
+        const end = item.duracao_minutos
+          ? new Date(start.getTime() + item.duracao_minutos * 60000)
+          : undefined;
+        const titleBase =
+          item.tipo === "call_prospeccao" && item.leadNome
+            ? `${item.titulo} — ${item.leadNome}`
+            : item.titulo;
+        return {
+          id: item.id,
+          title: titleBase,
+          start: start.toISOString(),
+          end: end ? end.toISOString() : undefined,
+          backgroundColor: cfg.bg,
+          borderColor: cfg.border,
+          textColor: cfg.text,
+          extendedProps: { tipo: item.tipo, status: item.status },
+        };
+      }),
+    [compromissos],
+  );
 
   const resetForm = () => {
     setTitulo("");
@@ -134,6 +136,68 @@ export function AgendaView({ initialCompromissos }: { initialCompromissos: Compr
     setTipo(item.tipo);
     setError(null);
     setShowForm(true);
+  };
+
+  const openNewAt = (dateKey: string, timeKey: string) => {
+    resetForm();
+    setEditingId(null);
+    setData(dateKey);
+    setHora(timeKey);
+    setError(null);
+    setShowForm(true);
+  };
+
+  const handleDateClick = (info: DateClickArg) => {
+    const [datePart, timePart] = info.dateStr.split("T");
+    openNewAt(datePart, timePart ? timePart.slice(0, 5) : "09:00");
+  };
+
+  const handleEventClick = (info: EventClickArg) => {
+    const item = compromissos.find((c) => c.id === info.event.id);
+    if (item) startEdit(item);
+  };
+
+  const persistReschedule = async (id: string, dataHoraIso: string, duracaoMinutos: number | null) => {
+    const item = compromissos.find((c) => c.id === id);
+    if (!item) return false;
+
+    const response = await fetch("/api/compromissos/atualizar", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id,
+        titulo: item.titulo,
+        tipo: item.tipo,
+        data_hora: dataHoraIso,
+        duracao_minutos: duracaoMinutos,
+      }),
+    });
+
+    if (!response.ok) return false;
+
+    const payload = await response.json();
+    setCompromissos((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...payload.compromisso, leadNome: c.leadNome } : c)),
+    );
+    return true;
+  };
+
+  const handleEventDrop = async (info: EventDropArg) => {
+    const novaDataHora = `${info.event.startStr}-03:00`;
+    const duracaoMinutos = info.event.end
+      ? Math.round((info.event.end.getTime() - info.event.start!.getTime()) / 60000)
+      : null;
+    const ok = await persistReschedule(info.event.id, novaDataHora, duracaoMinutos);
+    if (!ok) info.revert();
+  };
+
+  const handleEventResize = async (info: EventResizeDoneArg) => {
+    const novaDataHora = `${info.event.startStr}-03:00`;
+    const duracaoMinutos = info.event.end
+      ? Math.round((info.event.end.getTime() - info.event.start!.getTime()) / 60000)
+      : null;
+    const ok = await persistReschedule(info.event.id, novaDataHora, duracaoMinutos);
+    if (!ok) info.revert();
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -191,31 +255,56 @@ export function AgendaView({ initialCompromissos }: { initialCompromissos: Compr
     const confirmado = window.confirm("Tem certeza que quer apagar este compromisso?");
     if (!confirmado) return;
 
-    const response = await fetch("/api/compromissos/apagar", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
+    setDeleting(true);
+    try {
+      const response = await fetch("/api/compromissos/apagar", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
 
-    if (!response.ok) return;
+      if (!response.ok) return;
 
-    setCompromissos((prev) => prev.filter((item) => item.id !== id));
-    if (editingId === id) closeForm();
+      setCompromissos((prev) => prev.filter((item) => item.id !== id));
+      if (editingId === id) closeForm();
+    } finally {
+      setDeleting(false);
+    }
   };
+
+  const renderEventContent = (arg: EventContentArg) => (
+    <div className="flex w-full flex-col gap-0.5 overflow-hidden px-1 py-0.5 text-[11px] leading-tight">
+      {arg.timeText ? <span className="font-semibold opacity-90">{arg.timeText}</span> : null}
+      <span className="truncate font-medium">{arg.event.title}</span>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-[#D85A30]">Próximos compromissos</p>
-          <h2 className="mt-1 text-2xl font-semibold text-white">Sua agenda, do hoje em diante</h2>
+          <p className="text-sm font-medium text-[#D85A30]">Sua agenda</p>
+          <h2 className="mt-1 text-2xl font-semibold text-white">Compromissos e calls</h2>
         </div>
-        <button
-          onClick={() => (showForm ? closeForm() : setShowForm(true))}
-          className="rounded-2xl border border-[#D85A30]/40 bg-[#D85A30]/10 px-4 py-2 text-sm font-semibold text-[#f0a480] transition hover:bg-[#D85A30]/20"
-        >
-          {showForm ? (editingId ? "Cancelar edição" : "Cancelar") : "+ Novo compromisso"}
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="hidden items-center gap-4 sm:flex">
+            {(Object.keys(tipoConfig) as Compromisso["tipo"][]).map((key) => (
+              <span key={key} className="flex items-center gap-2 text-xs text-zinc-400">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: tipoConfig[key].bg }}
+                />
+                {tipoConfig[key].label}
+              </span>
+            ))}
+          </div>
+          <button
+            onClick={() => (showForm ? closeForm() : openNewAt(saoPauloDateKey(new Date()), "09:00"))}
+            className="rounded-2xl border border-[#D85A30]/40 bg-[#D85A30]/10 px-4 py-2 text-sm font-semibold text-[#f0a480] transition hover:bg-[#D85A30]/20"
+          >
+            {showForm ? (editingId ? "Cancelar edição" : "Cancelar") : "+ Novo compromisso"}
+          </button>
+        </div>
       </div>
 
       {showForm ? (
@@ -270,78 +359,59 @@ export function AgendaView({ initialCompromissos }: { initialCompromissos: Compr
             >
               {saving ? "Salvando..." : editingId ? "Salvar alterações" : "Salvar compromisso"}
             </button>
+            {editingId ? (
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => handleDelete(editingId)}
+                className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleting ? "Apagando..." : "Apagar compromisso"}
+              </button>
+            ) : null}
             {error ? <p className="text-sm text-rose-300">{error}</p> : null}
           </div>
         </form>
       ) : null}
 
-      {grupos.length ? (
-        <div className="space-y-6">
-          {grupos.map(([key, items]) => (
-            <div key={key} className="space-y-3">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
-                {formatDiaLabel(key)}
-              </h3>
-              <div className="space-y-3">
-                {items.map((item) => {
-                  const badge = tipoBadge[item.tipo];
-                  const duracaoLabel = formatDuracao(item.duracao_minutos);
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-950/80 p-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 shrink-0 text-sm font-semibold text-white">
-                          {formatHora(item.data_hora)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-white">{item.titulo}</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-400">
-                            {duracaoLabel ? <span>{duracaoLabel}</span> : null}
-                            {item.tipo === "call_prospeccao" && item.leadNome ? (
-                              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-zinc-300">
-                                {item.leadNome}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-medium ${badge.className}`}>
-                          {badge.label}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => startEdit(item)}
-                          aria-label="Remarcar compromisso"
-                          title="Remarcar"
-                          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm text-zinc-300 transition hover:bg-white/10 hover:text-white"
-                        >
-                          ✎
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(item.id)}
-                          aria-label="Apagar compromisso"
-                          title="Apagar"
-                          className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-500/20 bg-rose-500/10 text-sm text-rose-300 transition hover:bg-rose-500/20"
-                        >
-                          🗑
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-zinc-400">
-          Nenhum compromisso agendado para hoje ou os próximos dias.
-        </div>
-      )}
+      <div className="axven-calendar rounded-3xl border border-white/10 bg-zinc-950/80 p-3 sm:p-5">
+        <FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
+          initialView="timeGridWeek"
+          locales={[ptBrLocale]}
+          locale="pt-br"
+          timeZone="America/Sao_Paulo"
+          headerToolbar={{
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+          }}
+          buttonText={{ today: "Hoje", month: "Mês", week: "Semana", day: "Dia", list: "Lista" }}
+          height="auto"
+          slotMinTime="07:00:00"
+          slotMaxTime="22:00:00"
+          slotDuration="00:30:00"
+          allDaySlot={false}
+          nowIndicator
+          navLinks
+          editable
+          selectable
+          dayMaxEvents
+          weekends
+          firstDay={0}
+          events={events}
+          eventContent={renderEventContent}
+          dateClick={handleDateClick}
+          eventClick={handleEventClick}
+          eventDrop={handleEventDrop}
+          eventResize={handleEventResize}
+        />
+      </div>
+
+      <p className="text-xs text-zinc-500">
+        Dica: clique em um horário vazio pra criar um compromisso, clique em um existente pra editar, ou arraste
+        pra remarcar.
+      </p>
     </div>
   );
 }

@@ -32,3 +32,89 @@ button,
 input {
   font: inherit;
 }
+
+/* FullCalendar - tema escuro combinando com o dashboard Axven */
+.axven-calendar .fc {
+  --fc-border-color: rgba(255, 255, 255, 0.08);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: rgba(255, 255, 255, 0.04);
+  --fc-neutral-text-color: #a1a1aa;
+  --fc-today-bg-color: rgba(216, 90, 48, 0.08);
+  --fc-now-indicator-color: #d85a30;
+  --fc-button-text-color: #f5f7fb;
+  --fc-button-bg-color: rgba(255, 255, 255, 0.05);
+  --fc-button-border-color: rgba(255, 255, 255, 0.1);
+  --fc-button-hover-bg-color: rgba(255, 255, 255, 0.1);
+  --fc-button-hover-border-color: rgba(255, 255, 255, 0.15);
+  --fc-button-active-bg-color: #d85a30;
+  --fc-button-active-border-color: #d85a30;
+  --fc-event-selected-overlay-color: rgba(216, 90, 48, 0.25);
+  --fc-list-event-hover-bg-color: rgba(255, 255, 255, 0.05);
+  color: #f5f7fb;
+  font-family: inherit;
+}
+
+.axven-calendar .fc .fc-toolbar-title {
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.axven-calendar .fc .fc-col-header-cell-cushion,
+.axven-calendar .fc .fc-daygrid-day-number,
+.axven-calendar .fc .fc-timegrid-slot-label-cushion,
+.axven-calendar .fc .fc-list-day-text,
+.axven-calendar .fc .fc-list-day-side-text {
+  color: #a1a1aa;
+  text-decoration: none;
+}
+
+.axven-calendar .fc .fc-day-today .fc-daygrid-day-number,
+.axven-calendar .fc .fc-day-today .fc-col-header-cell-cushion {
+  color: #f0a480;
+  font-weight: 700;
+}
+
+.axven-calendar .fc .fc-button {
+  text-transform: none;
+  border-radius: 0.75rem;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  box-shadow: none !important;
+}
+
+.axven-calendar .fc .fc-button:focus,
+.axven-calendar .fc .fc-button:active:focus {
+  box-shadow: none !important;
+}
+
+.axven-calendar .fc .fc-button-primary:not(:disabled).fc-button-active {
+  color: #ffffff;
+}
+
+.axven-calendar .fc-theme-standard td,
+.axven-calendar .fc-theme-standard th,
+.axven-calendar .fc-scrollgrid {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.axven-calendar .fc-daygrid-event,
+.axven-calendar .fc-timegrid-event {
+  border-radius: 0.5rem;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.axven-calendar .fc-list-event:hover td {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.axven-calendar .fc-timegrid-now-indicator-line {
+  border-color: #d85a30;
+}
+
+.axven-calendar .fc-timegrid-now-indicator-arrow {
+  border-color: #d85a30;
+  color: #d85a30;
+}
