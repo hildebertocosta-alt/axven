@@ -159,8 +159,8 @@ export default function RelatoriosPage() {
                             <p className="font-medium text-white">{m.pedidos ?? 0}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-zinc-500">ROI</p>
-                            <p className="font-medium text-emerald-300">{m.roi ? `${m.roi.toFixed(1)}x` : "—"}</p>
+                            <p className="text-xs text-zinc-500">Valor de compras</p>
+                            <p className="font-medium text-emerald-300">{formatCurrency(m.receita ?? 0)}</p>
                           </div>
                         </>
                       ) : (
