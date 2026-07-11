@@ -386,10 +386,10 @@ export default function DashboardPage() {
             <p className="mt-3 text-3xl font-semibold text-white">{formatCurrency(mrrTotal)}</p>
           </Link>
 
-          <Link href="/clientes" className="rounded-3xl border border-white/10 bg-zinc-950/80 p-5 transition hover:border-white/20">
+          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-5">
             <p className="text-sm text-zinc-400">Clientes ativos</p>
             <p className="mt-3 text-3xl font-semibold text-white">{clientesAtivos}</p>
-          </Link>
+          </div>
 
           <Link href="/financeiro" className="rounded-3xl border border-white/10 bg-zinc-950/80 p-5 transition hover:border-white/20">
             <p className="text-sm text-zinc-400">Margem do mês</p>
@@ -636,9 +636,6 @@ export default function DashboardPage() {
           <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-white">Clientes em foco</h3>
-              <Link href="/clientes" className="text-sm font-medium text-[#f0a480]">
-                Ver todos
-              </Link>
             </div>
 
             <div className="mt-5 grid gap-4">
