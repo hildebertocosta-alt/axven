@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "../components/dashboard/AppShell";
-import { supabase } from "../lib/supabase";
 
 type ClienteRow = { id: string; nome: string; };
 type RelatorioRow = {
@@ -31,15 +30,14 @@ export default function RelatoriosPage() {
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const loadRelatorios = async () => {
-    const { data } = await supabase.from("relatorios").select("id,cliente_nome,periodo_inicio,periodo_fim,criado_em").order("criado_em", { ascending: false });
+    const response = await fetch("/api/relatorios/list");
+    const { relatorios: data, clientes: clientesData } = await response.json();
     setRelatorios(data ?? []);
+    setClientes(clientesData ?? []);
+    if (clientesData?.[0]) setSelectedClienteId(clientesData[0].id);
   };
 
   useEffect(() => {
-    supabase.from("clientes").select("id,nome").order("nome").then(({ data }) => {
-      setClientes(data ?? []);
-      if (data?.[0]) setSelectedClienteId(data[0].id);
-    });
     (async () => {
       await loadRelatorios();
     })();

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppShell } from "../components/dashboard/AppShell";
-import { supabase } from "../lib/supabase";
 
 type FinanceStatus = "Pago" | "Atrasado" | "Vence hoje" | "Vence em breve" | "Pendente";
 
@@ -206,14 +205,8 @@ export default function FinanceiroPage() {
   const [despesaError, setDespesaError] = useState<string | null>(null);
 
   const loadAll = async () => {
-    const [{ data: financeiroData }, { data: clientesData }, { data: despesasData }] = await Promise.all([
-      supabase.from("financeiro").select("*").order("dia_vencimento"),
-      supabase
-        .from("clientes")
-        .select("id, nome, honorarios, canal_aquisicao, status_pagamento, data_fim_contrato")
-        .order("nome"),
-      supabase.from("despesas").select("*").order("data", { ascending: false }),
-    ]);
+    const response = await fetch("/api/financeiro/data");
+    const { financeiro: financeiroData, clientes: clientesData, despesas: despesasData } = await response.json();
 
     setFinanceiro(
       (financeiroData ?? []).map((item: FinanceRow) => ({

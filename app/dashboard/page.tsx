@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { AppShell } from "../components/dashboard/AppShell";
 import { supabase } from "../lib/supabase";
+// NOTE: `supabase` (anon client) is retained only for the lembretes add/toggle/delete
+// calls below, which already fail silently (pre-existing bug, out of scope for this fix).
 
 type StatusPagamento = "pago" | "em_dia" | "atrasado" | "cancelado";
 
@@ -159,17 +161,9 @@ export default function DashboardPage() {
       body: JSON.stringify({ mes_referencia: mesAtual }),
     }).catch(() => null);
 
-    const [{ data: clientesData }, { data: financeiroData }, { data: despesasData }, { data: lembretes }, { data: tarefas }] =
-      await Promise.all([
-        supabase
-          .from("clientes")
-          .select("id, nome, nicho, score, status, status_pagamento, honorarios, data_fim_contrato")
-          .order("nome"),
-        supabase.from("financeiro").select("id, cliente_id, valor, dia_vencimento, status").eq("mes_referencia", mesAtual),
-        supabase.from("despesas").select("valor").eq("mes_referencia", mesAtual),
-        supabase.from("lembretes").select("*").order("criado_em", { ascending: false }),
-        supabase.from("tarefas").select("*").eq("concluido", false),
-      ]);
+    const response = await fetch("/api/dashboard/data");
+    const { clientes: clientesData, financeiro: financeiroData, despesas: despesasData, lembretes, tarefas } =
+      await response.json();
 
     setClientes(
       (clientesData ?? []).map((item: ClienteRow) => ({

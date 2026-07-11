@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 
 export async function POST(req: NextRequest) {
   const { cliente_id, periodo_inicio, periodo_fim } = await req.json();
 
-  const { data: cliente } = await supabase
+  const { data: cliente } = await supabaseAdmin
     .from("clientes")
     .select("*")
     .eq("id", cliente_id)
@@ -46,7 +41,7 @@ export async function POST(req: NextRequest) {
   const receita = parseFloat(insight.action_values?.find((a: any) => a.action_type === "omni_purchase")?.value ?? "0");
   const roi = investimento > 0 && receita > 0 ? receita / investimento : null;
 
-  const { data: relatorio } = await supabase
+  const { data: relatorio } = await supabaseAdmin
     .from("relatorios")
     .insert({
       cliente_id,

@@ -1,4 +1,4 @@
-import { supabase } from "../../lib/supabase";
+import { supabaseAdmin } from "../../lib/supabaseAdmin";
 import { notFound } from "next/navigation";
 import CopiarLinkButton from "./CopiarLinkButton";
 
@@ -21,7 +21,7 @@ function formatPeriod(inicio: string, fim: string) {
 
 export default async function RelatorioPublicoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { data: r } = await supabase.from("relatorios").select("*").eq("id", id).single();
+  const { data: r } = await supabaseAdmin.from("relatorios").select("*").eq("id", id).single();
   if (!r) notFound();
 
   const isEcommerce = r.tipo === "ecommerce";
