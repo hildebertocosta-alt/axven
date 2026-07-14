@@ -77,9 +77,13 @@ export async function proxy(request: NextRequest) {
       return deny();
     }
 
-    const { data: cliente } = await supabase.from("clientes").select("id").eq("slug", slug).single();
+    const { data: cliente } = await supabase.from("clientes").select("id, status_pagamento").eq("slug", slug).single();
 
     if (!cliente || cliente.id !== vinculo.cliente_id) {
+      return deny();
+    }
+
+    if (cliente.status_pagamento === "cancelado") {
       return deny();
     }
 

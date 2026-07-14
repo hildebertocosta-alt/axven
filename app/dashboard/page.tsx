@@ -139,6 +139,7 @@ export default function DashboardPage() {
   const [taskClientId, setTaskClientId] = useState("");
   const [taskClientName, setTaskClientName] = useState("");
   const [removingTaskId, setRemovingTaskId] = useState<string | null>(null);
+  const [encerrandoClienteId, setEncerrandoClienteId] = useState<string | null>(null);
 
   const [showNovoCliente, setShowNovoCliente] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("novo_cliente") === "1",
@@ -293,6 +294,41 @@ export default function DashboardPage() {
       }
       setRemovingTaskId(null);
     }, 180);
+  };
+
+  const handleEncerrarCliente = async (id: string, nome: string) => {
+    if (!window.confirm(`Encerrar o cliente "${nome}"? Ele deixa de aparecer como ativo e perde acesso ao CRM. Isso pode ser revertido a qualquer momento.`)) {
+      return;
+    }
+    setEncerrandoClienteId(id);
+    try {
+      const response = await fetch("/api/clientes/atualizar-status-pagamento", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status_pagamento: "cancelado" }),
+      });
+      if (response.ok) {
+        setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, status_pagamento: "cancelado" } : c)));
+      }
+    } finally {
+      setEncerrandoClienteId(null);
+    }
+  };
+
+  const handleReativarCliente = async (id: string) => {
+    setEncerrandoClienteId(id);
+    try {
+      const response = await fetch("/api/clientes/atualizar-status-pagamento", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status_pagamento: "em_dia" }),
+      });
+      if (response.ok) {
+        setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, status_pagamento: "em_dia" } : c)));
+      }
+    } finally {
+      setEncerrandoClienteId(null);
+    }
   };
 
   const handleCreateCliente = async (event: React.FormEvent) => {
@@ -633,7 +669,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="mt-5 grid gap-4">
-              {clientes.map((client) => (
+              {clientes.filter((client) => client.status_pagamento !== "cancelado").map((client) => (
                 <div key={client.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -653,7 +689,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <div className="mt-4 flex flex-wrap gap-3 text-sm text-zinc-300">
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-300">
                     <span className={`rounded-full px-3 py-1 ${
                       normalizeStatus(client.status ?? "verificar") === "critico"
                         ? "bg-rose-500/10 text-rose-200"
@@ -663,10 +699,46 @@ export default function DashboardPage() {
                     }`}>
                       Status: {formatStatus(client.status ?? "verificar")}
                     </span>
+                    <button
+                      onClick={() => handleEncerrarCliente(client.id, client.nome)}
+                      disabled={encerrandoClienteId === client.id}
+                      className="text-xs font-medium text-zinc-500 transition hover:text-rose-300 disabled:opacity-50"
+                    >
+                      {encerrandoClienteId === client.id ? "Encerrando..." : "Encerrar cliente"}
+                    </button>
                   </div>
                 </div>
               ))}
+              {clientes.filter((client) => client.status_pagamento !== "cancelado").length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-400">
+                  Nenhum cliente ativo no momento.
+                </p>
+              ) : null}
             </div>
+
+            {clientes.some((client) => client.status_pagamento === "cancelado") ? (
+              <details className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <summary className="cursor-pointer text-sm font-medium text-zinc-400">
+                  Clientes encerrados ({clientes.filter((client) => client.status_pagamento === "cancelado").length})
+                </summary>
+                <div className="mt-3 space-y-2">
+                  {clientes
+                    .filter((client) => client.status_pagamento === "cancelado")
+                    .map((client) => (
+                      <div key={client.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-zinc-400">
+                        <span>{client.nome}</span>
+                        <button
+                          onClick={() => handleReativarCliente(client.id)}
+                          disabled={encerrandoClienteId === client.id}
+                          className="text-xs font-medium text-emerald-300 transition hover:text-emerald-200 disabled:opacity-50"
+                        >
+                          {encerrandoClienteId === client.id ? "Reativando..." : "Reativar"}
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </details>
+            ) : null}
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
