@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "../../components/dashboard/AppShell";
-import { supabase } from "@/app/lib/supabase";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { KanbanBoard, type LeadRow } from "./KanbanBoard";
 import { LogoutButton } from "./LogoutButton";
@@ -21,7 +20,7 @@ type ClienteRow = {
 export default async function CrmKanbanPage({ params }: Props) {
   const { slug } = await params;
 
-  const { data: cliente } = await supabase
+  const { data: cliente } = await supabaseAdmin
     .from("clientes")
     .select("id, nome, slug")
     .eq("slug", slug)
