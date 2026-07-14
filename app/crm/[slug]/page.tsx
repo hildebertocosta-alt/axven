@@ -42,6 +42,7 @@ export default async function CrmKanbanPage({ params }: Props) {
       subtitle="CRM · Kanban de leads"
       activeLabel="CRM"
       actions={<LogoutButton />}
+      variant="portal"
     >
       <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={(leads as LeadRow[] | null) ?? []} />
     </AppShell>

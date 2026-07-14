@@ -21,12 +21,13 @@ type AppShellProps = {
   sidebarStatus?: {
     lastUpdated: string | null;
   };
+  variant?: "internal" | "portal";
 };
 
-export function AppShell({ title, subtitle, activeLabel, children, actions, sidebarStatus }: AppShellProps) {
+export function AppShell({ title, subtitle, activeLabel, children, actions, sidebarStatus, variant = "internal" }: AppShellProps) {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-zinc-100">
-      <Sidebar items={navItems} activeLabel={activeLabel} status={sidebarStatus} />
+      <Sidebar items={variant === "portal" ? [] : navItems} activeLabel={activeLabel} status={sidebarStatus} variant={variant} />
 
       <main className="lg:ml-72">
         <Topbar title={title} subtitle={subtitle} actions={actions} />
