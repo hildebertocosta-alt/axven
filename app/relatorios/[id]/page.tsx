@@ -92,7 +92,7 @@ export default async function RelatorioPublicoPage({ params }: { params: Promise
           </div>
 
           <div style={{ padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <p style={{ fontSize: "11px", color: "#52525b", margin: 0 }}>axven.contato@gmail.com</p>
+            <p style={{ fontSize: "11px", color: "#52525b", margin: 0 }}>axvendigital@gmail.com</p>
             <p style={{ fontSize: "11px", color: "#52525b", margin: 0 }}>(81) 9 9578-8220</p>
           </div>
 
