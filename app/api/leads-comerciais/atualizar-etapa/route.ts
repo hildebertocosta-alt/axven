@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 
-const ETAPAS_VALIDAS = ["novo_lead", "qualificando", "proposta_enviada", "negociacao", "fechado_ganho", "perdido"];
+const ETAPAS_VALIDAS = ["novo_lead", "qualificando", "proposta_enviada", "negociacao", "fechado_ganho", "perdido", "numero_invalido"];
 
 export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => null);

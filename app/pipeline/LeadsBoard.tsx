@@ -16,7 +16,14 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-export type Etapa = "novo_lead" | "qualificando" | "proposta_enviada" | "negociacao" | "fechado_ganho" | "perdido";
+export type Etapa =
+  | "novo_lead"
+  | "qualificando"
+  | "proposta_enviada"
+  | "negociacao"
+  | "fechado_ganho"
+  | "perdido"
+  | "numero_invalido";
 
 export type LeadRow = {
   id: string;
@@ -37,6 +44,7 @@ const COLUMNS: Column[] = [
   { key: "negociacao", label: "Negociação", accent: "border-[#D85A30]/20 bg-[#D85A30]/5" },
   { key: "fechado_ganho", label: "Fechado (Ganho)", accent: "border-emerald-500/20 bg-emerald-500/5" },
   { key: "perdido", label: "Perdido", accent: "border-rose-500/20 bg-rose-500/5" },
+  { key: "numero_invalido", label: "Número Inválido", accent: "border-zinc-600/30 bg-zinc-800/40" },
 ];
 
 const badgeClasses: Record<Etapa, string> = {
@@ -46,6 +54,7 @@ const badgeClasses: Record<Etapa, string> = {
   negociacao: "border-[#D85A30]/40 bg-[#D85A30]/15 text-[#f0a480]",
   fechado_ganho: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
   perdido: "border-rose-500/30 bg-rose-500/10 text-rose-200",
+  numero_invalido: "border-zinc-500/30 bg-zinc-700/20 text-zinc-400",
 };
 
 function diasParado(atualizadoEm: string) {
