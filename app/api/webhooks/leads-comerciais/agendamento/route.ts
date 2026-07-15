@@ -18,8 +18,14 @@ export async function POST(req: NextRequest) {
 
   const { lead_id, nome, proposta } = body as { lead_id?: string; nome?: string; proposta?: string };
 
-  if (!lead_id || !proposta) {
-    return NextResponse.json({ error: "lead_id e proposta sao obrigatorios" }, { status: 400 });
+  if (!lead_id) {
+    return NextResponse.json({ error: "lead_id e obrigatorio" }, { status: 400 });
+  }
+
+  // Sem proposta de horário nessa mensagem: no-op silencioso (o workflow n8n chama
+  // esse endpoint em toda resposta da IA, só cria tarefa quando há de fato uma proposta).
+  if (!proposta || !proposta.trim()) {
+    return NextResponse.json({ tarefa: null, lead_id });
   }
 
   const { data: tarefa, error } = await supabaseAdmin
