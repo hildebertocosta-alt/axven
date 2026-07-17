@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { validateWebhookSecret } from "@/app/lib/webhookAuth";
 
 const ETAPAS_VALIDAS = ["novo_lead", "qualificando", "proposta_enviada", "negociacao", "fechado_ganho", "perdido", "numero_invalido"];
-const ESTADOS_FUNIL_VALIDOS = ["aguardando_interesse", "aguardando_trafego", "aguardando_horario", "concluido", "perdido"];
+const ESTADOS_FUNIL_VALIDOS = ["aguardando_interesse", "aguardando_trafego", "aguardando_horario", "concluido", "perdido", "contatado"];
 
 // Chamado pelo agente de IA de prospecção depois de ler a conversa de WhatsApp
 // e decidir que o lead comercial avançou (ou saiu) do funil.

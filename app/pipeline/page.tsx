@@ -8,7 +8,7 @@ export const revalidate = 0;
 export default async function PipelinePage() {
   const { data: leads } = await supabaseAdmin
     .from("leads_comerciais")
-    .select("id, nome, telefone, nicho, como_chegou, etapa, atualizado_em")
+    .select("id, nome, telefone, nicho, como_chegou, etapa, atualizado_em, pausado_ia")
     .order("atualizado_em", { ascending: false });
 
   return (

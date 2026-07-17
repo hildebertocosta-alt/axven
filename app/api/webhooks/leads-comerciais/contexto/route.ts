@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const { data: leads } = await supabaseAdmin
     .from("leads_comerciais")
-    .select("id, nome, telefone, nicho, porte, ja_investiu_trafego, etapa, estado_funil");
+    .select("id, nome, telefone, nicho, porte, ja_investiu_trafego, etapa, estado_funil, pausado_ia");
 
   const lead = (leads ?? []).find((item) => item.telefone && soDigitos(item.telefone) === telefoneNormalizado) ?? null;
 

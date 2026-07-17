@@ -33,6 +33,7 @@ export type LeadRow = {
   como_chegou: string | null;
   etapa: Etapa;
   atualizado_em: string;
+  pausado_ia: boolean;
 };
 
 type Column = { key: Etapa; label: string; accent: string };
@@ -74,10 +75,12 @@ function LeadCard({
   lead,
   dragging = false,
   onOpenMessages,
+  onTogglePausa,
 }: {
   lead: LeadRow;
   dragging?: boolean;
   onOpenMessages?: (lead: LeadRow) => void;
+  onTogglePausa?: (lead: LeadRow) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
 
@@ -119,18 +122,42 @@ function LeadCard({
         </span>
       ) : null}
 
-      {onOpenMessages ? (
-        <button
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpenMessages(lead);
-          }}
-          className="mt-3 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:bg-white/10 hover:text-white"
-        >
-          💬 Ver conversa
-        </button>
+      {lead.pausado_ia ? (
+        <span className="mt-2 inline-flex rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-200">
+          🙋 Você assumiu essa conversa
+        </span>
       ) : null}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {onOpenMessages ? (
+          <button
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenMessages(lead);
+            }}
+            className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:bg-white/10 hover:text-white"
+          >
+            💬 Ver conversa
+          </button>
+        ) : null}
+        {onTogglePausa ? (
+          <button
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onTogglePausa(lead);
+            }}
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] transition ${
+              lead.pausado_ia
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
+                : "border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20"
+            }`}
+          >
+            {lead.pausado_ia ? "🤖 Devolver pra IA" : "🙋 Assumir conversa"}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -139,10 +166,12 @@ function KanbanColumn({
   column,
   leads,
   onOpenMessages,
+  onTogglePausa,
 }: {
   column: Column;
   leads: LeadRow[];
   onOpenMessages: (lead: LeadRow) => void;
+  onTogglePausa: (lead: LeadRow) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.key });
 
@@ -162,7 +191,7 @@ function KanbanColumn({
       >
         <SortableContext items={leads.map((lead) => lead.id)} strategy={verticalListSortingStrategy}>
           {leads.map((lead) => (
-            <LeadCard key={lead.id} lead={lead} onOpenMessages={onOpenMessages} />
+            <LeadCard key={lead.id} lead={lead} onOpenMessages={onOpenMessages} onTogglePausa={onTogglePausa} />
           ))}
         </SortableContext>
         {leads.length === 0 ? (
@@ -336,6 +365,23 @@ export function LeadsBoard({ initialLeads }: { initialLeads: LeadRow[] }) {
     }
   }
 
+  async function handleTogglePausa(lead: LeadRow) {
+    const novoPausado = !lead.pausado_ia;
+    const previousLeads = leads;
+
+    setLeads((prev) => prev.map((item) => (item.id === lead.id ? { ...item, pausado_ia: novoPausado } : item)));
+
+    const response = await fetch("/api/leads-comerciais/pausar-ia", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: lead.id, pausado: novoPausado }),
+    });
+
+    if (!response.ok) {
+      setLeads(previousLeads);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end">
@@ -439,6 +485,7 @@ export function LeadsBoard({ initialLeads }: { initialLeads: LeadRow[] }) {
               column={column}
               leads={leads.filter((lead) => lead.etapa === column.key)}
               onOpenMessages={setViewingLead}
+              onTogglePausa={handleTogglePausa}
             />
           ))}
         </div>
