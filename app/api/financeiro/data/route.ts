@@ -6,7 +6,7 @@ export async function GET() {
     supabaseAdmin.from("financeiro").select("*").order("dia_vencimento"),
     supabaseAdmin
       .from("clientes")
-      .select("id, nome, honorarios, canal_aquisicao, status_pagamento, data_fim_contrato")
+      .select("id, nome, telefone, honorarios, canal_aquisicao, status_pagamento, data_fim_contrato")
       .order("nome"),
     supabaseAdmin.from("despesas").select("*").order("data", { ascending: false }),
   ]);

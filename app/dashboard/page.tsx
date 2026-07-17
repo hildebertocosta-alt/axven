@@ -148,6 +148,7 @@ export default function DashboardPage() {
     () => (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("nome")) || "",
   );
   const [novoClienteNicho, setNovoClienteNicho] = useState("");
+  const [novoClienteTelefone, setNovoClienteTelefone] = useState("");
   const [novoClienteHonorarios, setNovoClienteHonorarios] = useState("");
   const [novoClienteDiaPagamento, setNovoClienteDiaPagamento] = useState("5");
   const [savingCliente, setSavingCliente] = useState(false);
@@ -349,6 +350,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           nome: nomeTrim,
           nicho: novoClienteNicho.trim() || null,
+          telefone: novoClienteTelefone.trim() || null,
           honorarios: novoClienteHonorarios ? Number(novoClienteHonorarios) : null,
           dia_pagamento: novoClienteDiaPagamento ? Number(novoClienteDiaPagamento) : 5,
         }),
@@ -367,6 +369,7 @@ export default function DashboardPage() {
       setClientes((prev) => [...prev, novoCliente].sort((a, b) => a.nome.localeCompare(b.nome)));
       setNovoClienteNome("");
       setNovoClienteNicho("");
+      setNovoClienteTelefone("");
       setNovoClienteHonorarios("");
       setNovoClienteDiaPagamento("5");
       setShowNovoCliente(false);
@@ -502,6 +505,13 @@ export default function DashboardPage() {
                 value={novoClienteNicho}
                 onChange={(event) => setNovoClienteNicho(event.target.value)}
                 placeholder="Nicho (opcional)"
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500"
+              />
+              <input
+                type="tel"
+                value={novoClienteTelefone}
+                onChange={(event) => setNovoClienteTelefone(event.target.value)}
+                placeholder="Telefone (WhatsApp, com DDD)"
                 className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500"
               />
               <label className="flex flex-col gap-1 text-xs font-medium text-zinc-400">

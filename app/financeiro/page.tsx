@@ -71,6 +71,7 @@ type FinanceRow = {
 type ClienteRow = {
   id: string;
   nome: string;
+  telefone: string | null;
   honorarios: number | null;
   canal_aquisicao: CanalAquisicao | null;
   status_pagamento: StatusPagamento;
@@ -218,6 +219,7 @@ export default function FinanceiroPage() {
       (clientesData ?? []).map((item: ClienteRow) => ({
         id: item.id,
         nome: item.nome,
+        telefone: item.telefone ?? null,
         honorarios: item.honorarios === null ? null : Number(item.honorarios),
         canal_aquisicao: item.canal_aquisicao ?? null,
         status_pagamento: item.status_pagamento ?? "em_dia",
@@ -408,6 +410,20 @@ export default function FinanceiroPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: clienteId, canal_aquisicao: canal }),
+    });
+
+    if (!response.ok) setClientes(previous);
+  };
+
+  const updateTelefone = async (clienteId: string, telefone: string) => {
+    const previous = clientes;
+    const value = telefone.trim() || null;
+    setClientes((current) => current.map((item) => (item.id === clienteId ? { ...item, telefone: value } : item)));
+
+    const response = await fetch("/api/clientes/atualizar-telefone", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: clienteId, telefone: value }),
     });
 
     if (!response.ok) setClientes(previous);
@@ -608,6 +624,7 @@ export default function FinanceiroPage() {
               <thead className="bg-white/5 text-left text-zinc-400">
                 <tr>
                   <th className="px-4 py-3 font-medium">Cliente</th>
+                  <th className="px-4 py-3 font-medium">Telefone (WhatsApp)</th>
                   <th className="px-4 py-3 font-medium">MRR mensal</th>
                   <th className="px-4 py-3 font-medium">Margem líquida (mês)</th>
                   <th className="px-4 py-3 font-medium">Canal de aquisição</th>
@@ -626,6 +643,15 @@ export default function FinanceiroPage() {
                   return (
                     <tr key={cliente.id}>
                       <td className="px-4 py-3 font-medium text-white">{cliente.nome}</td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="tel"
+                          defaultValue={cliente.telefone ?? ""}
+                          onBlur={(event) => updateTelefone(cliente.id, event.target.value)}
+                          placeholder="DDD + número"
+                          className="w-40 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none placeholder:text-zinc-500"
+                        />
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap">{formatCurrency(cliente.honorarios ?? 0)}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {temMovimentoNoMes ? (

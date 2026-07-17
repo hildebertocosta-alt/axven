@@ -7,6 +7,7 @@ export async function POST(req: NextRequest) {
   if (!nome) return NextResponse.json({ error: "nome obrigatorio" }, { status: 400 });
 
   const nicho = typeof body?.nicho === "string" && body.nicho.trim() ? body.nicho.trim() : null;
+  const telefone = typeof body?.telefone === "string" && body.telefone.trim() ? body.telefone.replace(/\D/g, "") : null;
   const honorarios = typeof body?.honorarios === "number" && body.honorarios > 0 ? body.honorarios : null;
   const diaPagamento =
     typeof body?.dia_pagamento === "number" && body.dia_pagamento >= 1 && body.dia_pagamento <= 31
@@ -15,8 +16,8 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("clientes")
-    .insert({ nome, nicho, honorarios, dia_pagamento: diaPagamento, status: "verificar" })
-    .select("id, nome, nicho, score, status, status_pagamento, honorarios, data_fim_contrato")
+    .insert({ nome, nicho, telefone, honorarios, dia_pagamento: diaPagamento, status: "verificar" })
+    .select("id, nome, nicho, telefone, score, status, status_pagamento, honorarios, data_fim_contrato")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
