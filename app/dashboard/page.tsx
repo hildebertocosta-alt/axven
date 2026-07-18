@@ -44,6 +44,16 @@ type TaskItem = {
   criado_em: string;
 };
 
+type ConversaPendente = {
+  origem: "prospeccao" | "financeiro";
+  id: string;
+  nome: string;
+  telefone: string | null;
+  motivo: "pausado" | "sem_resposta";
+  ultima_mensagem: string | null;
+  ultima_mensagem_em: string;
+};
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -106,6 +116,17 @@ function getPriorityStyles(priority: string) {
   }
 }
 
+function formatRelativeTime(iso: string) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 1) return "agora mesmo";
+  if (diffMin < 60) return `há ${diffMin} min`;
+  const diffHoras = Math.round(diffMin / 60);
+  if (diffHoras < 24) return `há ${diffHoras}h`;
+  const diffDias = Math.round(diffHoras / 24);
+  return `há ${diffDias}d`;
+}
+
 export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -115,6 +136,7 @@ export default function DashboardPage() {
   const [reminderInput, setReminderInput] = useState("");
   const [reminders, setReminders] = useState<LembreteRow[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [conversasPendentes, setConversasPendentes] = useState<ConversaPendente[]>([]);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskClientId, setTaskClientId] = useState("");
   const [taskClientName, setTaskClientName] = useState("");
@@ -142,7 +164,10 @@ export default function DashboardPage() {
       body: JSON.stringify({ mes_referencia: mesAtual }),
     }).catch(() => null);
 
-    const response = await fetch("/api/dashboard/data");
+    const [response, conversasResponse] = await Promise.all([
+      fetch("/api/dashboard/data"),
+      fetch("/api/dashboard/conversas-pendentes").catch(() => null),
+    ]);
     const { clientes: clientesData, financeiro: financeiroData, despesas: despesasData, lembretes, tarefas } =
       await response.json();
 
@@ -156,6 +181,11 @@ export default function DashboardPage() {
     setDespesasMesTotal((despesasData ?? []).reduce((sum: number, item: { valor: number }) => sum + Number(item.valor ?? 0), 0));
     setReminders((lembretes ?? []).map((item: LembreteRow) => ({ id: item.id, texto: item.texto, concluido: item.concluido })));
     setTasks(sortTasks((tarefas ?? []) as TaskItem[]));
+
+    if (conversasResponse?.ok) {
+      const { conversas } = await conversasResponse.json();
+      setConversasPendentes((conversas ?? []) as ConversaPendente[]);
+    }
   };
 
   useEffect(() => {
@@ -390,6 +420,59 @@ export default function DashboardPage() {
             <p className="mt-3 text-3xl font-semibold text-white">{contratosVencendo}</p>
           </Link>
         </div>
+
+        {conversasPendentes.length > 0 ? (
+          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-400">WhatsApp</p>
+                <h3 className="mt-1 text-lg font-semibold text-white">Conversas aguardando você</h3>
+              </div>
+              <span className="rounded-full border border-[#D85A30]/30 bg-[#D85A30]/10 px-3 py-1 text-sm text-[#f0a480]">
+                {conversasPendentes.length}
+              </span>
+            </div>
+
+            <ul className="mt-5 space-y-3">
+              {conversasPendentes.map((conversa) => (
+                <li
+                  key={`${conversa.origem}-${conversa.id}`}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-white">{conversa.nome}</p>
+                      <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-zinc-400">
+                        {conversa.origem === "financeiro" ? "Financeiro" : "Prospecção"}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          conversa.motivo === "pausado"
+                            ? "border border-sky-500/30 bg-sky-500/10 text-sky-200"
+                            : "border border-amber-500/30 bg-amber-500/10 text-amber-200"
+                        }`}
+                      >
+                        {conversa.motivo === "pausado" ? "Você assumiu" : "Sem resposta"}
+                      </span>
+                    </div>
+                    {conversa.ultima_mensagem ? (
+                      <p className="mt-1 truncate text-zinc-400">"{conversa.ultima_mensagem}"</p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="text-xs text-zinc-500">{formatRelativeTime(conversa.ultima_mensagem_em)}</span>
+                    <Link
+                      href={conversa.origem === "financeiro" ? "/financeiro" : "/pipeline"}
+                      className="rounded-full border border-[#D85A30]/40 bg-[#D85A30]/10 px-3 py-1.5 text-xs font-semibold text-[#f0a480] transition hover:bg-[#D85A30]/20"
+                    >
+                      Responder
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-3">
           <Link
