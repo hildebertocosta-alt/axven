@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { AppShell } from "../components/dashboard/AppShell";
 import { supabase } from "../lib/supabase";
 // NOTE: `supabase` (anon client) is retained only for the lembretes add/toggle/delete
@@ -86,25 +85,6 @@ function diasParaVencimentoContrato(dataFimContrato: string) {
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
-function normalizeStatus(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[^\w\s]/g, "")
-    .replace(/\s+/g, "");
-}
-
-function formatStatus(value: string) {
-  const map: Record<string, string> = {
-    verificar: "Verificar",
-    alerta: "Alerta",
-    atencao: "Atenção",
-    critico: "Crítico",
-    ativo: "Ativo",
-  };
-  return map[normalizeStatus(value)] ?? value;
-}
-
 function sortTasks(tasks: TaskItem[]) {
   return [...tasks].sort((a, b) => {
     const priorityRank: Record<string, number> = { urgente: 1, alta: 2, normal: 3 };
@@ -139,7 +119,6 @@ export default function DashboardPage() {
   const [taskClientId, setTaskClientId] = useState("");
   const [taskClientName, setTaskClientName] = useState("");
   const [removingTaskId, setRemovingTaskId] = useState<string | null>(null);
-  const [encerrandoClienteId, setEncerrandoClienteId] = useState<string | null>(null);
 
   const [showNovoCliente, setShowNovoCliente] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("novo_cliente") === "1",
@@ -184,16 +163,6 @@ export default function DashboardPage() {
       await loadDashboard();
     })();
   }, []);
-
-  const comparisonData = useMemo(
-    () =>
-      clientes.map((client) => ({
-        name: client.nome,
-        score: client.score,
-        color: client.score === null ? "#71717a" : client.score >= 80 ? "#34d399" : client.score >= 60 ? "#fbbf24" : "#f43f5e",
-      })),
-    [clientes],
-  );
 
   const mrrTotal = useMemo(() => clientes.reduce((sum, c) => sum + (c.honorarios ?? 0), 0), [clientes]);
 
@@ -295,41 +264,6 @@ export default function DashboardPage() {
       }
       setRemovingTaskId(null);
     }, 180);
-  };
-
-  const handleEncerrarCliente = async (id: string, nome: string) => {
-    if (!window.confirm(`Encerrar o cliente "${nome}"? Ele deixa de aparecer como ativo e perde acesso ao CRM. Isso pode ser revertido a qualquer momento.`)) {
-      return;
-    }
-    setEncerrandoClienteId(id);
-    try {
-      const response = await fetch("/api/clientes/atualizar-status-pagamento", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status_pagamento: "cancelado" }),
-      });
-      if (response.ok) {
-        setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, status_pagamento: "cancelado" } : c)));
-      }
-    } finally {
-      setEncerrandoClienteId(null);
-    }
-  };
-
-  const handleReativarCliente = async (id: string) => {
-    setEncerrandoClienteId(id);
-    try {
-      const response = await fetch("/api/clientes/atualizar-status-pagamento", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status_pagamento: "em_dia" }),
-      });
-      if (response.ok) {
-        setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, status_pagamento: "em_dia" } : c)));
-      }
-    } finally {
-      setEncerrandoClienteId(null);
-    }
   };
 
   const handleCreateCliente = async (event: React.FormEvent) => {
@@ -672,110 +606,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Clientes em foco</h3>
-            </div>
-
-            <div className="mt-5 grid gap-4">
-              {clientes.filter((client) => client.status_pagamento !== "cancelado").map((client) => (
-                <div key={client.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-white">{client.nome}</p>
-                      <p className="mt-1 text-sm text-zinc-400">{client.nicho ?? "Sem nicho"}</p>
-                    </div>
-                    <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
-                      client.score === null
-                        ? "border-zinc-500/20 bg-zinc-500/10 text-zinc-200"
-                        : client.score >= 85
-                          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
-                          : client.score >= 70
-                            ? "border-amber-500/20 bg-amber-500/10 text-amber-200"
-                            : "border-rose-500/20 bg-rose-500/10 text-rose-200"
-                    }`}>
-                      {client.score ?? "—"}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-300">
-                    <span className={`rounded-full px-3 py-1 ${
-                      normalizeStatus(client.status ?? "verificar") === "critico"
-                        ? "bg-rose-500/10 text-rose-200"
-                        : normalizeStatus(client.status ?? "verificar") === "alerta" || normalizeStatus(client.status ?? "verificar") === "atencao"
-                          ? "bg-amber-500/10 text-amber-200"
-                          : "bg-emerald-500/10 text-emerald-200"
-                    }`}>
-                      Status: {formatStatus(client.status ?? "verificar")}
-                    </span>
-                    <button
-                      onClick={() => handleEncerrarCliente(client.id, client.nome)}
-                      disabled={encerrandoClienteId === client.id}
-                      className="text-xs font-medium text-zinc-500 transition hover:text-rose-300 disabled:opacity-50"
-                    >
-                      {encerrandoClienteId === client.id ? "Encerrando..." : "Encerrar cliente"}
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {clientes.filter((client) => client.status_pagamento !== "cancelado").length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-400">
-                  Nenhum cliente ativo no momento.
-                </p>
-              ) : null}
-            </div>
-
-            {clientes.some((client) => client.status_pagamento === "cancelado") ? (
-              <details className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <summary className="cursor-pointer text-sm font-medium text-zinc-400">
-                  Clientes encerrados ({clientes.filter((client) => client.status_pagamento === "cancelado").length})
-                </summary>
-                <div className="mt-3 space-y-2">
-                  {clientes
-                    .filter((client) => client.status_pagamento === "cancelado")
-                    .map((client) => (
-                      <div key={client.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-zinc-400">
-                        <span>{client.nome}</span>
-                        <button
-                          onClick={() => handleReativarCliente(client.id)}
-                          disabled={encerrandoClienteId === client.id}
-                          className="text-xs font-medium text-emerald-300 transition hover:text-emerald-200 disabled:opacity-50"
-                        >
-                          {encerrandoClienteId === client.id ? "Reativando..." : "Reativar"}
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </details>
-            ) : null}
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Score de oportunidade · Meta Ads</h3>
-              <span className="text-sm text-zinc-500">Comparativo</span>
-            </div>
-            <div className="mt-5 h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={comparisonData} layout="vertical" margin={{ top: 10, right: 20, left: 16, bottom: 10 }}>
-                  <XAxis type="number" domain={[0, 100]} tick={{ fill: "#a1a1aa", fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: "#f4f4f5", fontSize: 12 }} axisLine={false} tickLine={false} width={120} />
-                  <Tooltip
-                    cursor={{ fill: "rgba(255,255,255,0.04)" }}
-                    contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: 12 }}
-                    formatter={(value) => [`${value === undefined || value === null ? "—" : value}`, "Score"]}
-                  />
-                  <Bar dataKey="score" radius={[0, 8, 8, 0]}>
-                    {comparisonData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
       </div>
     </AppShell>
   );
