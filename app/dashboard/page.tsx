@@ -54,6 +54,35 @@ type ConversaPendente = {
   ultima_mensagem_em: string;
 };
 
+type CompromissoRow = {
+  id: string;
+  titulo: string;
+  tipo: "pessoal" | "call_prospeccao" | "reuniao_cliente";
+  data_hora: string;
+  duracao_minutos: number | null;
+  status: string;
+};
+
+const TIPO_COMPROMISSO_LABEL: Record<CompromissoRow["tipo"], string> = {
+  pessoal: "Pessoal",
+  call_prospeccao: "Call de prospecção",
+  reuniao_cliente: "Reunião com cliente",
+};
+
+const TIPO_COMPROMISSO_BADGE: Record<CompromissoRow["tipo"], string> = {
+  pessoal: "border-white/10 bg-[#2C2C2A] text-zinc-300",
+  call_prospeccao: "border-[#D85A30]/40 bg-[#D85A30]/15 text-[#f0a480]",
+  reuniao_cliente: "border-indigo-500/40 bg-indigo-500/15 text-indigo-200",
+};
+
+function formatCompromissoQuando(iso: string) {
+  const data = new Date(iso);
+  const hoje = saoPauloTodayKey();
+  const dataKey = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(data);
+  const hora = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(data);
+  return `${dataKey === hoje ? "Hoje" : "Amanhã"}, ${hora}`;
+}
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -137,6 +166,7 @@ export default function DashboardPage() {
   const [reminders, setReminders] = useState<LembreteRow[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [conversasPendentes, setConversasPendentes] = useState<ConversaPendente[]>([]);
+  const [compromissosProximos, setCompromissosProximos] = useState<CompromissoRow[]>([]);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskClientId, setTaskClientId] = useState("");
   const [taskClientName, setTaskClientName] = useState("");
@@ -164,9 +194,10 @@ export default function DashboardPage() {
       body: JSON.stringify({ mes_referencia: mesAtual }),
     }).catch(() => null);
 
-    const [response, conversasResponse] = await Promise.all([
+    const [response, conversasResponse, compromissosResponse] = await Promise.all([
       fetch("/api/dashboard/data"),
       fetch("/api/dashboard/conversas-pendentes").catch(() => null),
+      fetch("/api/dashboard/compromissos-proximos").catch(() => null),
     ]);
     const { clientes: clientesData, financeiro: financeiroData, despesas: despesasData, lembretes, tarefas } =
       await response.json();
@@ -185,6 +216,11 @@ export default function DashboardPage() {
     if (conversasResponse?.ok) {
       const { conversas } = await conversasResponse.json();
       setConversasPendentes((conversas ?? []) as ConversaPendente[]);
+    }
+
+    if (compromissosResponse?.ok) {
+      const { compromissos } = await compromissosResponse.json();
+      setCompromissosProximos((compromissos ?? []) as CompromissoRow[]);
     }
   };
 
@@ -420,6 +456,44 @@ export default function DashboardPage() {
             <p className="mt-3 text-3xl font-semibold text-white">{contratosVencendo}</p>
           </Link>
         </div>
+
+        {compromissosProximos.length > 0 ? (
+          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-400">Agenda</p>
+                <h3 className="mt-1 text-lg font-semibold text-white">Próximos compromissos</h3>
+              </div>
+              <Link
+                href="/dashboard/agenda"
+                className="rounded-full border border-[#D85A30]/30 bg-[#D85A30]/10 px-3 py-1 text-sm text-[#f0a480]"
+              >
+                Ver agenda
+              </Link>
+            </div>
+
+            <ul className="mt-5 space-y-3">
+              {compromissosProximos.map((compromisso) => (
+                <li
+                  key={compromisso.id}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-white">{compromisso.titulo}</p>
+                      <span className={`rounded-full px-2 py-0.5 text-xs ${TIPO_COMPROMISSO_BADGE[compromisso.tipo]}`}>
+                        {TIPO_COMPROMISSO_LABEL[compromisso.tipo]}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-xs font-medium text-zinc-300">
+                    {formatCompromissoQuando(compromisso.data_hora)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {conversasPendentes.length > 0 ? (
           <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
