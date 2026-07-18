@@ -75,6 +75,26 @@ const TIPO_COMPROMISSO_BADGE: Record<CompromissoRow["tipo"], string> = {
   reuniao_cliente: "border-indigo-500/40 bg-indigo-500/15 text-indigo-200",
 };
 
+type EtapaFunil = "novo_lead" | "qualificando" | "proposta_enviada" | "negociacao" | "fechado_ganho" | "perdido";
+
+const ETAPA_FUNIL_LABEL: Record<EtapaFunil, string> = {
+  novo_lead: "Novo Lead",
+  qualificando: "Qualificando",
+  proposta_enviada: "Proposta Enviada",
+  negociacao: "Negociação",
+  fechado_ganho: "Fechado (Ganho)",
+  perdido: "Perdido",
+};
+
+const ETAPA_FUNIL_COR: Record<EtapaFunil, string> = {
+  novo_lead: "bg-zinc-500",
+  qualificando: "bg-sky-500",
+  proposta_enviada: "bg-amber-500",
+  negociacao: "bg-[#D85A30]",
+  fechado_ganho: "bg-emerald-500",
+  perdido: "bg-rose-500",
+};
+
 function formatCompromissoQuando(iso: string) {
   const data = new Date(iso);
   const hoje = saoPauloTodayKey();
@@ -180,6 +200,8 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [conversasPendentes, setConversasPendentes] = useState<ConversaPendente[]>([]);
   const [compromissosProximos, setCompromissosProximos] = useState<CompromissoRow[]>([]);
+  const [funilVendas, setFunilVendas] = useState<{ etapa: EtapaFunil; total: number }[]>([]);
+  const [funilNumeroInvalido, setFunilNumeroInvalido] = useState(0);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskClientId, setTaskClientId] = useState("");
   const [taskClientName, setTaskClientName] = useState("");
@@ -207,10 +229,11 @@ export default function DashboardPage() {
       body: JSON.stringify({ mes_referencia: mesAtual }),
     }).catch(() => null);
 
-    const [response, conversasResponse, compromissosResponse] = await Promise.all([
+    const [response, conversasResponse, compromissosResponse, funilResponse] = await Promise.all([
       fetch("/api/dashboard/data"),
       fetch("/api/dashboard/conversas-pendentes").catch(() => null),
       fetch("/api/dashboard/compromissos-proximos").catch(() => null),
+      fetch("/api/dashboard/funil-vendas").catch(() => null),
     ]);
     const { clientes: clientesData, financeiro: financeiroData, despesas: despesasData, lembretes, tarefas } =
       await response.json();
@@ -234,6 +257,12 @@ export default function DashboardPage() {
     if (compromissosResponse?.ok) {
       const { compromissos } = await compromissosResponse.json();
       setCompromissosProximos((compromissos ?? []) as CompromissoRow[]);
+    }
+
+    if (funilResponse?.ok) {
+      const { etapas, numeroInvalido } = await funilResponse.json();
+      setFunilVendas((etapas ?? []) as { etapa: EtapaFunil; total: number }[]);
+      setFunilNumeroInvalido(numeroInvalido ?? 0);
     }
   };
 
@@ -469,6 +498,63 @@ export default function DashboardPage() {
             <p className="mt-3 text-3xl font-semibold text-white">{contratosVencendo}</p>
           </Link>
         </div>
+
+        {funilVendas.length > 0 ? (
+          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-400">CRM</p>
+                <h3 className="mt-1 text-lg font-semibold text-white">Funil de vendas</h3>
+              </div>
+              <Link
+                href="/pipeline"
+                className="rounded-full border border-[#D85A30]/30 bg-[#D85A30]/10 px-3 py-1 text-sm text-[#f0a480]"
+              >
+                Ver Pipeline
+              </Link>
+            </div>
+
+            {(() => {
+              const totalFunil = funilVendas.reduce((sum, e) => sum + e.total, 0);
+              return (
+                <>
+                  <div className="mt-5 flex h-3 w-full overflow-hidden rounded-full bg-white/5">
+                    {totalFunil > 0 ? (
+                      funilVendas
+                        .filter((e) => e.total > 0)
+                        .map((e) => (
+                          <div
+                            key={e.etapa}
+                            className={ETAPA_FUNIL_COR[e.etapa]}
+                            style={{ width: `${(e.total / totalFunil) * 100}%` }}
+                            title={`${ETAPA_FUNIL_LABEL[e.etapa]}: ${e.total}`}
+                          />
+                        ))
+                    ) : (
+                      <div className="w-full bg-white/10" />
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
+                    {funilVendas.map((e) => (
+                      <div key={e.etapa} className="flex items-center gap-2 text-sm">
+                        <span className={`h-2.5 w-2.5 rounded-full ${ETAPA_FUNIL_COR[e.etapa]}`} />
+                        <span className="text-zinc-300">{ETAPA_FUNIL_LABEL[e.etapa]}</span>
+                        <span className="font-semibold text-white">{e.total}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {funilNumeroInvalido > 0 ? (
+                    <p className="mt-3 text-xs text-zinc-500">
+                      + {funilNumeroInvalido} com número inválido (fora do funil)
+                    </p>
+                  ) : null}
+                </>
+              );
+            })()}
+          </div>
+        ) : null}
 
         {compromissosProximos.length > 0 ? (
           <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
