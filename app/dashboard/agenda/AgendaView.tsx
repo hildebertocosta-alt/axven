@@ -44,6 +44,14 @@ function saoPauloTimeKey(date: Date) {
   }).format(date);
 }
 
+// String "naive" (sem Z/offset) representando o horário de São Paulo do Date
+// recebido. O FullCalendar, com timeZone="America/Sao_Paulo", interpreta uma
+// string sem offset como já estando nesse fuso — é o formato confiável pra
+// isso, diferente de mandar toISOString() (UTC) e torcer pra ele converter.
+function saoPauloIsoLocal(date: Date) {
+  return `${saoPauloDateKey(date)}T${saoPauloTimeKey(date)}:00`;
+}
+
 const tipoConfig: Record<
   Compromisso["tipo"],
   { label: string; badgeClass: string; bg: string; border: string; text: string }
@@ -100,8 +108,8 @@ export function AgendaView({ initialCompromissos }: { initialCompromissos: Compr
         return {
           id: item.id,
           title: titleBase,
-          start: start.toISOString(),
-          end: end ? end.toISOString() : undefined,
+          start: saoPauloIsoLocal(start),
+          end: end ? saoPauloIsoLocal(end) : undefined,
           backgroundColor: cfg.bg,
           borderColor: cfg.border,
           textColor: cfg.text,
