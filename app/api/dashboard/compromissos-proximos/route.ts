@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 // assim que o Hildeberto abrir a página — sem precisar entrar na Agenda.
 export async function GET() {
   const agora = new Date();
-  const limite = new Date(agora.getTime() + 48 * 60 * 60 * 1000);
+  const limite = new Date(agora.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   const { data, error } = await supabaseAdmin
     .from("compromissos")

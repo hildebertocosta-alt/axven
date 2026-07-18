@@ -78,9 +78,22 @@ const TIPO_COMPROMISSO_BADGE: Record<CompromissoRow["tipo"], string> = {
 function formatCompromissoQuando(iso: string) {
   const data = new Date(iso);
   const hoje = saoPauloTodayKey();
+  const amanha = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(Date.now() + 86400000));
   const dataKey = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(data);
   const hora = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(data);
-  return `${dataKey === hoje ? "Hoje" : "Amanhã"}, ${hora}`;
+
+  let quando: string;
+  if (dataKey === hoje) quando = "Hoje";
+  else if (dataKey === amanha) quando = "Amanhã";
+  else {
+    quando = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit" }).format(data);
+  }
+  return `${quando}, ${hora}`;
 }
 
 function formatCurrency(value: number) {
