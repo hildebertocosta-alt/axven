@@ -25,6 +25,7 @@ export default async function RelatorioPublicoPage({ params }: { params: Promise
   if (!r) notFound();
 
   const isEcommerce = r.tipo === "ecommerce";
+  const isVisualizacao = r.tipo === "visualizacao";
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#2C2C2A", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
@@ -74,6 +75,21 @@ export default async function RelatorioPublicoPage({ params }: { params: Promise
                   <div style={{ background: "#064e3b", borderRadius: "10px", padding: "0.75rem 1rem" }}>
                     <p style={{ fontSize: "11px", color: "#6ee7b7", margin: "0 0 4px" }}>ROI</p>
                     <p style={{ fontSize: "20px", fontWeight: 500, color: "#10b981", margin: 0 }}>{r.roi ? fmt(r.roi, "roi") : "—"}</p>
+                  </div>
+                </>
+              ) : isVisualizacao ? (
+                <>
+                  <div style={{ background: "#484846", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                    <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Impressões</p>
+                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{fmt(r.impressoes ?? 0)}</p>
+                  </div>
+                  <div style={{ background: "#484846", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                    <p style={{ fontSize: "11px", color: "#71717a", margin: "0 0 4px" }}>Frequência</p>
+                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#ffffff", margin: 0 }}>{(r.frequencia ?? 0).toFixed(1)}</p>
+                  </div>
+                  <div style={{ background: "#064e3b", borderRadius: "10px", padding: "0.75rem 1rem" }}>
+                    <p style={{ fontSize: "11px", color: "#6ee7b7", margin: "0 0 4px" }}>CPM</p>
+                    <p style={{ fontSize: "20px", fontWeight: 500, color: "#10b981", margin: 0 }}>{r.cpm ? fmt(r.cpm, "currency") : "—"}</p>
                   </div>
                 </>
               ) : (

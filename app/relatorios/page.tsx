@@ -16,10 +16,13 @@ type RelatorioRow = {
 type MetricaCliente = {
   cliente_id: string;
   cliente_nome: string;
-  tipo?: "ecommerce" | "lead";
+  tipo?: "ecommerce" | "lead" | "visualizacao";
   investimento?: number;
   alcance?: number;
   cliques?: number;
+  impressoes?: number;
+  frequencia?: number;
+  cpm?: number | null;
   leads?: number;
   cpl?: number | null;
   pedidos?: number;
@@ -161,6 +164,21 @@ export default function RelatoriosPage() {
                           <div>
                             <p className="text-xs text-zinc-500">Valor de compras</p>
                             <p className="font-medium text-emerald-300">{formatCurrency(m.receita ?? 0)}</p>
+                          </div>
+                        </>
+                      ) : m.tipo === "visualizacao" ? (
+                        <>
+                          <div>
+                            <p className="text-xs text-zinc-500">Impressões</p>
+                            <p className="font-medium text-white">{new Intl.NumberFormat("pt-BR").format(m.impressoes ?? 0)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-zinc-500">Frequência</p>
+                            <p className="font-medium text-white">{(m.frequencia ?? 0).toFixed(1)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-zinc-500">CPM</p>
+                            <p className="font-medium text-emerald-300">{m.cpm ? formatCurrency(m.cpm) : "—"}</p>
                           </div>
                         </>
                       ) : (

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
   if (!cliente) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
 
-  const tipo = cliente.nome === "Rei da Parmegiana" ? "ecommerce" : "lead";
+  const tipo = cliente.tipo_campanha ?? "lead";
 
   const { data: conexaoMeta } = await supabaseAdmin
     .from("integracao_meta")
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   const accessToken = conexaoMeta?.access_token ?? process.env.META_ACCESS_TOKEN!;
 
   const params = new URLSearchParams({
-    fields: "spend,reach,clicks,actions,cost_per_action_type,purchase_roas,action_values",
+    fields: "spend,reach,clicks,impressions,frequency,actions,cost_per_action_type,purchase_roas,action_values",
     time_range: JSON.stringify({ since: periodo_inicio, until: periodo_fim }),
     access_token: accessToken,
   });
@@ -41,6 +41,9 @@ export async function POST(req: NextRequest) {
   const investimento = parseFloat(insight.spend ?? "0");
   const alcance = parseInt(insight.reach ?? "0");
   const cliques = parseInt(insight.clicks ?? "0");
+  const impressoes = parseInt(insight.impressions ?? "0");
+  const frequencia = parseFloat(insight.frequency ?? "0");
+  const cpm = impressoes > 0 ? (investimento / impressoes) * 1000 : null;
 
   const actions = insight.actions ?? [];
   const leads = parseInt(actions.find((a: any) => a.action_type === "lead")?.value ?? "0");
@@ -61,6 +64,9 @@ export async function POST(req: NextRequest) {
       investimento,
       alcance,
       cliques,
+      impressoes,
+      frequencia,
+      cpm,
       leads,
       cpl,
       pedidos,

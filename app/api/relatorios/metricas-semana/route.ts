@@ -3,12 +3,12 @@ import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 
 const GRAPH_VERSION = "v21.0";
 
-type ClienteRow = { id: string; nome: string; meta_account_id: string | null };
+type ClienteRow = { id: string; nome: string; meta_account_id: string | null; tipo_campanha: string | null };
 type MetaAction = { action_type: string; value: string };
 
 export async function GET() {
   const [{ data: clientes }, { data: conexao }] = await Promise.all([
-    supabaseAdmin.from("clientes").select("id, nome, meta_account_id").order("nome"),
+    supabaseAdmin.from("clientes").select("id, nome, meta_account_id, tipo_campanha").order("nome"),
     supabaseAdmin
       .from("integracao_meta")
       .select("access_token")
@@ -29,10 +29,10 @@ export async function GET() {
         return { cliente_id: cliente.id, cliente_nome: cliente.nome, semConta: true };
       }
 
-      const tipo = cliente.nome === "Rei da Parmegiana" ? "ecommerce" : "lead";
+      const tipo = cliente.tipo_campanha ?? "lead";
 
       const params = new URLSearchParams({
-        fields: "spend,reach,clicks,actions,action_values",
+        fields: "spend,reach,clicks,impressions,frequency,actions,action_values",
         date_preset: "last_7d",
         access_token: accessToken,
       });
@@ -55,6 +55,9 @@ export async function GET() {
         const investimento = parseFloat(insight.spend ?? "0");
         const alcance = parseInt(insight.reach ?? "0", 10);
         const cliques = parseInt(insight.clicks ?? "0", 10);
+        const impressoes = parseInt(insight.impressions ?? "0", 10);
+        const frequencia = parseFloat(insight.frequency ?? "0");
+        const cpm = impressoes > 0 ? (investimento / impressoes) * 1000 : null;
         const actions: MetaAction[] = insight.actions ?? [];
         const actionValues: MetaAction[] = insight.action_values ?? [];
         const leads = parseInt(actions.find((a) => a.action_type === "lead")?.value ?? "0", 10);
@@ -70,6 +73,9 @@ export async function GET() {
           investimento,
           alcance,
           cliques,
+          impressoes,
+          frequencia,
+          cpm,
           leads,
           cpl,
           pedidos,
