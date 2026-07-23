@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 
@@ -10,6 +10,50 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
   const [senha, setSenha] = useState("");
   const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
+  const [checkingSessao, setCheckingSessao] = useState(true);
+
+  // Resolve o cliente vinculado ao usuário logado e manda pro CRM dele.
+  // Usado tanto após login manual (email+senha) quanto após um magic
+  // link / recuperação de senha que já deixou uma sessão pronta.
+  async function irParaCrmDoUsuario(userId: string) {
+    const { data: vinculo } = await supabase
+      .from("crm_usuarios")
+      .select("cliente_id")
+      .eq("user_id", userId)
+      .single();
+
+    if (!vinculo) {
+      setError("Este usuário não está vinculado a nenhum cliente. Fale com o administrador.");
+      await supabase.auth.signOut();
+      return false;
+    }
+
+    const { data: cliente } = await supabase.from("clientes").select("slug").eq("id", vinculo.cliente_id).single();
+
+    if (!cliente) {
+      setError("Cliente vinculado não encontrado.");
+      return false;
+    }
+
+    router.push(`/crm/${cliente.slug}`);
+    router.refresh();
+    return true;
+  }
+
+  // Se a página abriu com uma sessão já ativa (magic link ou link de
+  // recuperação de senha clicado no email), pula direto pro CRM em vez de
+  // mostrar o formulário — o cliente Supabase já processou o token da URL.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.user) {
+        const foiRedirecionado = await irParaCrmDoUsuario(data.session.user.id);
+        if (foiRedirecionado) return;
+      }
+      setCheckingSessao(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -24,29 +68,16 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
       return;
     }
 
-    const { data: vinculo } = await supabase
-      .from("crm_usuarios")
-      .select("cliente_id")
-      .eq("user_id", data.user.id)
-      .single();
+    await irParaCrmDoUsuario(data.user.id);
+    setLoading(false);
+  }
 
-    if (!vinculo) {
-      setError("Este usuário não está vinculado a nenhum cliente. Fale com o administrador.");
-      await supabase.auth.signOut();
-      setLoading(false);
-      return;
-    }
-
-    const { data: cliente } = await supabase.from("clientes").select("slug").eq("id", vinculo.cliente_id).single();
-
-    if (!cliente) {
-      setError("Cliente vinculado não encontrado.");
-      setLoading(false);
-      return;
-    }
-
-    router.push(`/crm/${cliente.slug}`);
-    router.refresh();
+  if (checkingSessao) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f] px-4 text-zinc-400">
+        <p className="text-sm">Verificando sessão...</p>
+      </div>
+    );
   }
 
   return (
