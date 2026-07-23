@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   const { data: leadsCliente } = await supabaseAdmin
     .from("leads")
-    .select("id, nome, telefone, etapa")
+    .select("id, nome, telefone, etapa, pausado_ia")
     .eq("cliente_id", cliente.id);
 
   const lead = (leadsCliente ?? []).find((item) => item.telefone && soDigitos(item.telefone) === telefoneNormalizado) ?? null;

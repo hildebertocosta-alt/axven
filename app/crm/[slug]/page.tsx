@@ -32,7 +32,7 @@ export default async function CrmKanbanPage({ params }: Props) {
 
   const { data: leads } = await supabaseAdmin
     .from("leads")
-    .select("id, nome, telefone, etapa, cliente_id, origem, criado_em, atualizado_em")
+    .select("id, nome, telefone, etapa, cliente_id, origem, criado_em, atualizado_em, pausado_ia")
     .eq("cliente_id", (cliente as ClienteRow).id)
     .order("criado_em", { ascending: false });
 

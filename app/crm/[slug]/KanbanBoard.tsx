@@ -16,7 +16,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/app/lib/supabase";
 
-export type Etapa = "lead" | "qualificado" | "agendado" | "fechado";
+export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado";
 
 export type LeadRow = {
   id: string;
@@ -27,6 +27,7 @@ export type LeadRow = {
   origem: string | null;
   criado_em: string;
   atualizado_em: string | null;
+  pausado_ia: boolean;
 };
 
 type Column = { key: Etapa; label: string; accent: string };
@@ -35,6 +36,7 @@ const COLUMNS: Column[] = [
   { key: "lead", label: "Lead", accent: "border-white/10 bg-zinc-950/80" },
   { key: "qualificado", label: "Qualificado", accent: "border-amber-500/20 bg-amber-500/5" },
   { key: "agendado", label: "Agendado", accent: "border-violet-500/20 bg-violet-500/5" },
+  { key: "proposta_enviada", label: "Proposta Enviada", accent: "border-sky-500/20 bg-sky-500/5" },
   { key: "fechado", label: "Fechado", accent: "border-emerald-500/20 bg-emerald-500/5" },
 ];
 
@@ -42,10 +44,19 @@ const badgeClasses: Record<Etapa, string> = {
   lead: "border-white/10 bg-white/5 text-zinc-300",
   qualificado: "border-amber-500/30 bg-amber-500/10 text-amber-200",
   agendado: "border-violet-500/30 bg-violet-500/10 text-violet-200",
+  proposta_enviada: "border-sky-500/30 bg-sky-500/10 text-sky-200",
   fechado: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
 };
 
-function LeadCard({ lead, dragging = false }: { lead: LeadRow; dragging?: boolean }) {
+function LeadCard({
+  lead,
+  dragging = false,
+  onTogglePausa,
+}: {
+  lead: LeadRow;
+  dragging?: boolean;
+  onTogglePausa?: (lead: LeadRow) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
 
   const style = {
@@ -71,11 +82,44 @@ function LeadCard({ lead, dragging = false }: { lead: LeadRow; dragging?: boolea
           {lead.origem}
         </span>
       ) : null}
+
+      {lead.pausado_ia ? (
+        <span className="mt-2 inline-flex rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-200">
+          🙋 Você assumiu essa conversa
+        </span>
+      ) : null}
+
+      {onTogglePausa ? (
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onTogglePausa(lead);
+            }}
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] transition ${
+              lead.pausado_ia
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
+                : "border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20"
+            }`}
+          >
+            {lead.pausado_ia ? "🤖 Devolver pra IA" : "🙋 Assumir conversa"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function KanbanColumn({ column, leads }: { column: Column; leads: LeadRow[] }) {
+function KanbanColumn({
+  column,
+  leads,
+  onTogglePausa,
+}: {
+  column: Column;
+  leads: LeadRow[];
+  onTogglePausa: (lead: LeadRow) => void;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: column.key });
 
   return (
@@ -96,7 +140,7 @@ function KanbanColumn({ column, leads }: { column: Column; leads: LeadRow[] }) {
       >
         <SortableContext items={leads.map((lead) => lead.id)} strategy={verticalListSortingStrategy}>
           {leads.map((lead) => (
-            <LeadCard key={lead.id} lead={lead} />
+            <LeadCard key={lead.id} lead={lead} onTogglePausa={onTogglePausa} />
           ))}
         </SortableContext>
         {leads.length === 0 ? (
@@ -165,6 +209,19 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
     }).catch((err) => console.error("Falha ao notificar n8n:", err));
   }
 
+  async function handleTogglePausa(lead: LeadRow) {
+    const novoPausado = !lead.pausado_ia;
+    const previousLeads = leads;
+
+    setLeads((prev) => prev.map((item) => (item.id === lead.id ? { ...item, pausado_ia: novoPausado } : item)));
+
+    const { error } = await supabase.from("leads").update({ pausado_ia: novoPausado }).eq("id", lead.id);
+
+    if (error) {
+      setLeads(previousLeads);
+    }
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -175,7 +232,12 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
     >
       <div className="flex gap-4 overflow-x-auto pb-2">
         {COLUMNS.map((column) => (
-          <KanbanColumn key={column.key} column={column} leads={leads.filter((lead) => lead.etapa === column.key)} />
+          <KanbanColumn
+            key={column.key}
+            column={column}
+            leads={leads.filter((lead) => lead.etapa === column.key)}
+            onTogglePausa={handleTogglePausa}
+          />
         ))}
       </div>
       <DragOverlay>{activeLead ? <LeadCard lead={activeLead} dragging /> : null}</DragOverlay>
