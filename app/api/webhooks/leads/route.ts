@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "corpo invalido" }, { status: 400 });
   }
 
-  const { cliente_slug, nome, telefone, campanha, conjunto, anuncio, plataforma, origem } = body as {
+  const { cliente_slug, nome, telefone, campanha, conjunto, anuncio, plataforma, origem, ctwaclid, anuncio_source_id } = body as {
     cliente_slug?: string;
     nome?: string;
     telefone?: string;
@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
     anuncio?: string;
     plataforma?: string;
     origem?: string;
+    ctwaclid?: string;
+    anuncio_source_id?: string;
   };
 
   if (!cliente_slug || !nome) {
@@ -50,6 +52,8 @@ export async function POST(req: NextRequest) {
       conjunto: conjunto ?? null,
       anuncio: anuncio ?? null,
       plataforma: plataforma ?? null,
+      ctwaclid: ctwaclid ?? null,
+      anuncio_source_id: anuncio_source_id ?? null,
     })
     .select("id, nome, cliente_id, etapa")
     .single();
