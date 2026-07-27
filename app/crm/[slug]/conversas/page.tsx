@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { AppShell } from "../../../components/dashboard/AppShell";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { LogoutButton } from "../LogoutButton";
-import { PortalTabs } from "../PortalTabs";
 import { ConversasView, type LeadResumo } from "./ConversasView";
 
 export const dynamic = "force-dynamic";
@@ -42,11 +41,14 @@ export default async function CrmConversasPage({ params }: Props) {
     <AppShell
       title={(cliente as ClienteRow).nome}
       subtitle="CRM · Conversas com leads"
-      activeLabel="CRM"
+      activeLabel="Conversas"
       actions={<LogoutButton />}
       variant="portal"
+      sidebarItems={[
+        { label: "Kanban", href: `/crm/${slug}`, icon: "🧲" },
+        { label: "Conversas", href: `/crm/${slug}/conversas`, icon: "💬" },
+      ]}
     >
-      <PortalTabs slug={slug} active="conversas" />
       <ConversasView initialLeads={(leads as LeadResumo[] | null) ?? []} />
     </AppShell>
   );

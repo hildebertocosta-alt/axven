@@ -3,7 +3,6 @@ import { AppShell } from "../../components/dashboard/AppShell";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { KanbanBoard, type LeadRow } from "./KanbanBoard";
 import { LogoutButton } from "./LogoutButton";
-import { PortalTabs } from "./PortalTabs";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -41,11 +40,14 @@ export default async function CrmKanbanPage({ params }: Props) {
     <AppShell
       title={(cliente as ClienteRow).nome}
       subtitle="CRM · Kanban de leads"
-      activeLabel="CRM"
+      activeLabel="Kanban"
       actions={<LogoutButton />}
       variant="portal"
+      sidebarItems={[
+        { label: "Kanban", href: `/crm/${slug}`, icon: "🧲" },
+        { label: "Conversas", href: `/crm/${slug}/conversas`, icon: "💬" },
+      ]}
     >
-      <PortalTabs slug={slug} active="kanban" />
       <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={(leads as LeadRow[] | null) ?? []} />
     </AppShell>
   );

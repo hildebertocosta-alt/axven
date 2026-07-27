@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { LogoutButton } from "./LogoutButton";
 
-type NavItem = {
+export type NavItem = {
   label: string;
   href: string;
   icon: ReactNode;

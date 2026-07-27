@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Sidebar } from "./Sidebar";
+import { Sidebar, type NavItem } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 const navItems = [
@@ -22,12 +22,15 @@ type AppShellProps = {
     lastUpdated: string | null;
   };
   variant?: "internal" | "portal";
+  sidebarItems?: NavItem[];
 };
 
-export function AppShell({ title, subtitle, activeLabel, children, actions, sidebarStatus, variant = "internal" }: AppShellProps) {
+export function AppShell({ title, subtitle, activeLabel, children, actions, sidebarStatus, variant = "internal", sidebarItems }: AppShellProps) {
+  const items = sidebarItems ?? (variant === "portal" ? [] : navItems);
+
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-zinc-100">
-      <Sidebar items={variant === "portal" ? [] : navItems} activeLabel={activeLabel} status={sidebarStatus} variant={variant} />
+      <Sidebar items={items} activeLabel={activeLabel} status={sidebarStatus} variant={variant} />
 
       <main className="lg:ml-72">
         <Topbar title={title} subtitle={subtitle} actions={actions} />
