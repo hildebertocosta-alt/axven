@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
-import { AppShell } from "../../components/dashboard/AppShell";
+import { AppShell } from "../../../components/dashboard/AppShell";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
-import { KanbanBoard, type LeadRow } from "./KanbanBoard";
-import { LogoutButton } from "./LogoutButton";
-import { PortalTabs } from "./PortalTabs";
+import { LogoutButton } from "../LogoutButton";
+import { PortalTabs } from "../PortalTabs";
+import { ConversasView, type LeadResumo } from "./ConversasView";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,7 +18,7 @@ type ClienteRow = {
   slug: string;
 };
 
-export default async function CrmKanbanPage({ params }: Props) {
+export default async function CrmConversasPage({ params }: Props) {
   const { slug } = await params;
 
   const { data: cliente } = await supabaseAdmin
@@ -33,20 +33,21 @@ export default async function CrmKanbanPage({ params }: Props) {
 
   const { data: leads } = await supabaseAdmin
     .from("leads")
-    .select("id, nome, telefone, etapa, cliente_id, origem, criado_em, atualizado_em, pausado_ia")
+    .select("id, nome, telefone, etapa, pausado_ia, criado_em, atualizado_em")
     .eq("cliente_id", (cliente as ClienteRow).id)
+    .order("atualizado_em", { ascending: false, nullsFirst: false })
     .order("criado_em", { ascending: false });
 
   return (
     <AppShell
       title={(cliente as ClienteRow).nome}
-      subtitle="CRM · Kanban de leads"
+      subtitle="CRM · Conversas com leads"
       activeLabel="CRM"
       actions={<LogoutButton />}
       variant="portal"
     >
-      <PortalTabs slug={slug} active="kanban" />
-      <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={(leads as LeadRow[] | null) ?? []} />
+      <PortalTabs slug={slug} active="conversas" />
+      <ConversasView initialLeads={(leads as LeadResumo[] | null) ?? []} />
     </AppShell>
   );
 }
