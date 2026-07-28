@@ -13,6 +13,13 @@ export type LeadResumo = {
   pausado_ia: boolean;
   criado_em: string;
   atualizado_em: string | null;
+  origem: string | null;
+  campanha: string | null;
+  conjunto: string | null;
+  anuncio: string | null;
+  plataforma: string | null;
+  ctwaclid: string | null;
+  anuncio_source_id: string | null;
 };
 
 type MensagemRow = {
@@ -42,6 +49,10 @@ function formatDataHora(value: string) {
   return new Date(value).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+function formatDataCompleta(value: string) {
+  return new Date(value).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 function ultimaAtividade(lead: LeadResumo) {
   const value = lead.atualizado_em ?? lead.criado_em;
   return new Date(value).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -56,12 +67,14 @@ export function ConversasView({ initialLeads }: { initialLeads: LeadResumo[] }) 
   const [novaMensagem, setNovaMensagem] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [showPerfil, setShowPerfil] = useState(false);
 
   const selectedLead = useMemo(() => leads.find((lead) => lead.id === selectedId) ?? null, [leads, selectedId]);
 
   useEffect(() => {
     setNovaMensagem("");
     setSendError(null);
+    setShowPerfil(false);
 
     if (!selectedId) {
       setMessages([]);
@@ -185,17 +198,25 @@ export function ConversasView({ initialLeads }: { initialLeads: LeadResumo[] }) 
                 <h3 className="text-lg font-semibold text-white">{selectedLead.nome || "Sem nome"}</h3>
                 <p className="mt-1 text-sm text-zinc-400">{selectedLead.telefone ?? "Sem telefone"}</p>
               </div>
-              <button
-                onClick={() => handleTogglePausa(selectedLead)}
-                disabled={busy}
-                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:opacity-60 ${
-                  selectedLead.pausado_ia
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
-                    : "border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20"
-                }`}
-              >
-                {selectedLead.pausado_ia ? "🤖 Devolver pra IA" : "🙋 Assumir conversa"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowPerfil(true)}
+                  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white"
+                >
+                  👤 Ver perfil
+                </button>
+                <button
+                  onClick={() => handleTogglePausa(selectedLead)}
+                  disabled={busy}
+                  className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:opacity-60 ${
+                    selectedLead.pausado_ia
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
+                      : "border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20"
+                  }`}
+                >
+                  {selectedLead.pausado_ia ? "🤖 Devolver pra IA" : "🙋 Assumir conversa"}
+                </button>
+              </div>
             </div>
 
             <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1" style={{ maxHeight: "50vh" }}>
@@ -259,6 +280,86 @@ export function ConversasView({ initialLeads }: { initialLeads: LeadResumo[] }) 
             </div>
           </>
         )}
+      </div>
+
+      {showPerfil && selectedLead ? (
+        <PerfilLeadPanel lead={selectedLead} totalMensagens={messages.length} onClose={() => setShowPerfil(false)} />
+      ) : null}
+    </div>
+  );
+}
+
+function PerfilLeadPanel({
+  lead,
+  totalMensagens,
+  onClose,
+}: {
+  lead: LeadResumo;
+  totalMensagens: number;
+  onClose: () => void;
+}) {
+  const veioDeAnuncio = !!lead.ctwaclid;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="flex-1 bg-black/60" onClick={onClose} />
+      <div className="flex h-full w-full max-w-sm flex-col overflow-y-auto border-l border-white/10 bg-zinc-950 p-6 shadow-2xl">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold text-white">Perfil do lead</h3>
+          <button onClick={onClose} className="text-sm text-zinc-400 transition hover:text-white">
+            Fechar
+          </button>
+        </div>
+
+        <div className="mt-6 space-y-6 text-sm">
+          <div>
+            <p className="text-lg font-semibold text-white">{lead.nome || "Sem nome"}</p>
+            <p className="mt-1 text-zinc-400">{lead.telefone ?? "Sem telefone"}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${etapaBadge[lead.etapa]}`}>
+                {etapaLabel[lead.etapa]}
+              </span>
+              {lead.pausado_ia ? (
+                <span className="inline-flex rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-medium text-violet-200">
+                  🙋 Conversa assumida
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Origem</p>
+            <p className="mt-2 text-zinc-200">{lead.origem ?? "Não informada"}</p>
+            {veioDeAnuncio ? (
+              <p className="mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-200">
+                ✅ Confirmado: veio de clique em anúncio
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-zinc-500">Sem atribuição de anúncio confirmada (ctwaclid).</p>
+            )}
+          </div>
+
+          {lead.campanha || lead.conjunto || lead.anuncio || lead.plataforma ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Campanha</p>
+              <div className="mt-2 space-y-1.5 text-zinc-200">
+                {lead.plataforma ? <p><span className="text-zinc-500">Plataforma:</span> {lead.plataforma}</p> : null}
+                {lead.campanha ? <p><span className="text-zinc-500">Campanha:</span> {lead.campanha}</p> : null}
+                {lead.conjunto ? <p><span className="text-zinc-500">Conjunto:</span> {lead.conjunto}</p> : null}
+                {lead.anuncio ? <p><span className="text-zinc-500">Anúncio:</span> {lead.anuncio}</p> : null}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Atividade</p>
+            <div className="mt-2 space-y-1.5 text-zinc-200">
+              <p><span className="text-zinc-500">Primeiro contato:</span> {formatDataCompleta(lead.criado_em)}</p>
+              <p><span className="text-zinc-500">Última atividade:</span> {formatDataCompleta(lead.atualizado_em ?? lead.criado_em)}</p>
+              <p><span className="text-zinc-500">Mensagens trocadas:</span> {totalMensagens}</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

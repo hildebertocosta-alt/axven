@@ -32,7 +32,9 @@ export default async function CrmConversasPage({ params }: Props) {
 
   const { data: leads } = await supabaseAdmin
     .from("leads")
-    .select("id, nome, telefone, etapa, pausado_ia, criado_em, atualizado_em")
+    .select(
+      "id, nome, telefone, etapa, pausado_ia, criado_em, atualizado_em, origem, campanha, conjunto, anuncio, plataforma, ctwaclid, anuncio_source_id",
+    )
     .eq("cliente_id", (cliente as ClienteRow).id)
     .order("atualizado_em", { ascending: false, nullsFirst: false })
     .order("criado_em", { ascending: false });
