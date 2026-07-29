@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 
-const ETAPAS_VALIDAS = ["lead", "qualificado", "agendado", "proposta_enviada", "fechado"];
+const ETAPAS_VALIDAS = ["lead", "qualificado", "agendado", "proposta_enviada", "fechado", "desqualificado"];
 const MAX_CARDS = 10;
 
 type CardEntrada = { texto: string; imagem_url: string; botao_texto: string };

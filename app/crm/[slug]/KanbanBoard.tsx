@@ -16,7 +16,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/app/lib/supabase";
 
-export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado";
+export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado" | "desqualificado";
 
 export type LeadRow = {
   id: string;
@@ -38,6 +38,7 @@ const COLUMNS: Column[] = [
   { key: "agendado", label: "Agendado", accent: "border-violet-500/20 bg-violet-500/5" },
   { key: "proposta_enviada", label: "Proposta Enviada", accent: "border-sky-500/20 bg-sky-500/5" },
   { key: "fechado", label: "Fechado", accent: "border-emerald-500/20 bg-emerald-500/5" },
+  { key: "desqualificado", label: "Desqualificado", accent: "border-rose-500/20 bg-rose-500/5" },
 ];
 
 const badgeClasses: Record<Etapa, string> = {
@@ -46,6 +47,7 @@ const badgeClasses: Record<Etapa, string> = {
   agendado: "border-violet-500/30 bg-violet-500/10 text-violet-200",
   proposta_enviada: "border-sky-500/30 bg-sky-500/10 text-sky-200",
   fechado: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+  desqualificado: "border-rose-500/30 bg-rose-500/10 text-rose-200",
 };
 
 function LeadCard({

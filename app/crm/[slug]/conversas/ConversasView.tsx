@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
 
-export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado";
+export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado" | "desqualificado";
 
 export type LeadResumo = {
   id: string;
@@ -35,6 +35,7 @@ const etapaLabel: Record<Etapa, string> = {
   agendado: "Agendado",
   proposta_enviada: "Proposta Enviada",
   fechado: "Fechado",
+  desqualificado: "Desqualificado",
 };
 
 const etapaBadge: Record<Etapa, string> = {
@@ -43,6 +44,7 @@ const etapaBadge: Record<Etapa, string> = {
   agendado: "border-violet-500/30 bg-violet-500/10 text-violet-200",
   proposta_enviada: "border-sky-500/30 bg-sky-500/10 text-sky-200",
   fechado: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+  desqualificado: "border-rose-500/30 bg-rose-500/10 text-rose-200",
 };
 
 function formatDataHora(value: string) {

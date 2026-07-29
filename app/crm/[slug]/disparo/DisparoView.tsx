@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
 
-export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado";
+export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado" | "desqualificado";
 
 export type LeadParaFiltro = {
   id: string;
@@ -49,6 +49,7 @@ const ETAPAS: { key: Etapa; label: string }[] = [
   { key: "agendado", label: "Agendado" },
   { key: "proposta_enviada", label: "Proposta Enviada" },
   { key: "fechado", label: "Fechado" },
+  { key: "desqualificado", label: "Desqualificado" },
 ];
 
 const ETAPAS_PADRAO: Etapa[] = ["lead", "qualificado", "agendado", "proposta_enviada"];
