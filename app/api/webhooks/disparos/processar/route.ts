@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
 
   const { data: disparosDevidos, error: disparosError } = await supabaseAdmin
     .from("disparos")
-    .select("id, cliente_id, mensagem")
+    .select("id, cliente_id, mensagem, cards")
     .eq("status", "em_andamento")
     .or(`proximo_envio_em.is.null,proximo_envio_em.lte.${agora.toISOString()}`);
 
@@ -79,12 +79,31 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const mensagemFinal = disparo.mensagem.replaceAll("{{nome}}", lead.nome?.split(" ")[0] || "");
+    const primeiroNome = lead.nome?.split(" ")[0] || "";
+    const substituirNome = (texto: string) => texto.replaceAll("{{nome}}", primeiroNome);
+    const mensagemFinal = substituirNome(disparo.mensagem);
 
-    const envioResponse = await fetch("https://axven.uazapi.com/send/text", {
+    type CardDisparo = { texto: string; imagem_url: string; botao_texto: string };
+    const cards = disparo.cards as CardDisparo[] | null;
+    const temCards = Array.isArray(cards) && cards.length > 0;
+
+    const endpoint = temCards ? "https://axven.uazapi.com/send/carousel" : "https://axven.uazapi.com/send/text";
+    const payload = temCards
+      ? {
+          number: lead.telefone,
+          text: mensagemFinal,
+          carousel: cards!.map((card) => ({
+            text: substituirNome(card.texto),
+            image: card.imagem_url,
+            buttons: [{ id: card.botao_texto, text: card.botao_texto, type: "REPLY" }],
+          })),
+        }
+      : { number: lead.telefone, text: mensagemFinal };
+
+    const envioResponse = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", token: cliente.uazapi_token },
-      body: JSON.stringify({ number: lead.telefone, text: mensagemFinal }),
+      body: JSON.stringify(payload),
     });
 
     if (!envioResponse.ok) {
@@ -109,12 +128,16 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
+    const resumoParaHistorico = temCards
+      ? `${mensagemFinal}\n\n${cards!.map((card) => `🛒 ${substituirNome(card.texto)}`).join("\n")}`
+      : mensagemFinal;
+
     await supabaseAdmin
       .from("disparos_itens")
       .update({ status: "enviado", enviado_em: new Date().toISOString() })
       .eq("id", proximoItem.id);
 
-    await supabaseAdmin.from("leads_mensagens").insert({ lead_id: lead.id, remetente: "humano", mensagem: mensagemFinal });
+    await supabaseAdmin.from("leads_mensagens").insert({ lead_id: lead.id, remetente: "humano", mensagem: resumoParaHistorico });
     await supabaseAdmin.from("leads").update({ atualizado_em: new Date().toISOString() }).eq("id", lead.id);
 
     const { data: disparoAtual } = await supabaseAdmin

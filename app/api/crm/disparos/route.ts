@@ -2,6 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 
 const ETAPAS_VALIDAS = ["lead", "qualificado", "agendado", "proposta_enviada", "fechado"];
+const MAX_CARDS = 10;
+
+type CardEntrada = { texto: string; imagem_url: string; botao_texto: string };
+
+// undefined = não veio cards no body (disparo de texto simples, válido)
+// null = veio cards mas em formato inválido (erro)
+// array = cards prontos pra gravar
+function normalizarCards(input: unknown): CardEntrada[] | null | undefined {
+  if (input === undefined || input === null) return undefined;
+  if (!Array.isArray(input) || input.length === 0 || input.length > MAX_CARDS) return null;
+
+  const cards: CardEntrada[] = [];
+  for (const item of input) {
+    const texto = typeof (item as { texto?: unknown })?.texto === "string" ? (item as { texto: string }).texto.trim() : "";
+    const imagemUrl =
+      typeof (item as { imagem_url?: unknown })?.imagem_url === "string" ? (item as { imagem_url: string }).imagem_url.trim() : "";
+    const botaoTexto =
+      typeof (item as { botao_texto?: unknown })?.botao_texto === "string" && (item as { botao_texto: string }).botao_texto.trim()
+        ? (item as { botao_texto: string }).botao_texto.trim()
+        : "Eu Quero";
+
+    if (!texto || !imagemUrl) return null;
+    cards.push({ texto, imagem_url: imagemUrl, botao_texto: botaoTexto });
+  }
+  return cards;
+}
 
 // Cria um disparo em massa (oferta) pra leads da base do cliente logado.
 // Só monta a fila (tabela disparos + disparos_itens); o envio de verdade,
@@ -32,9 +58,17 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const mensagem = typeof body?.mensagem === "string" ? body.mensagem.trim() : "";
   const etapas = Array.isArray(body?.etapas) ? (body.etapas as unknown[]).filter((e) => typeof e === "string") : [];
+  const cards = normalizarCards(body?.cards);
 
   if (!mensagem) {
     return NextResponse.json({ error: "mensagem vazia" }, { status: 400 });
+  }
+
+  if (cards === null) {
+    return NextResponse.json(
+      { error: `cartões inválidos (cada um precisa de texto e imagem; máximo ${MAX_CARDS})` },
+      { status: 400 },
+    );
   }
 
   if (etapas.length === 0 || !etapas.every((e) => ETAPAS_VALIDAS.includes(e as string))) {
@@ -71,13 +105,14 @@ export async function POST(req: NextRequest) {
     .insert({
       cliente_id: crmUsuario.cliente_id,
       mensagem,
+      cards,
       filtro_etapas: etapas,
       total_leads: leadsAlvo.length,
       status: "em_andamento",
       proximo_envio_em: new Date().toISOString(),
       criado_por: userData.user.id,
     })
-    .select("id, mensagem, filtro_etapas, total_leads, enviados, falhas, status, criado_em")
+    .select("id, mensagem, cards, filtro_etapas, total_leads, enviados, falhas, status, criado_em")
     .single();
 
   if (disparoError || !disparo) {

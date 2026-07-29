@@ -39,7 +39,7 @@ export default async function CrmDisparoPage({ params }: Props) {
 
   const { data: disparos } = await supabaseAdmin
     .from("disparos")
-    .select("id, mensagem, filtro_etapas, total_leads, enviados, falhas, status, criado_em, concluido_em")
+    .select("id, mensagem, cards, filtro_etapas, total_leads, enviados, falhas, status, criado_em, concluido_em")
     .eq("cliente_id", clienteId)
     .order("criado_em", { ascending: false })
     .limit(20);
@@ -57,7 +57,11 @@ export default async function CrmDisparoPage({ params }: Props) {
         { label: "Disparo", href: `/crm/${slug}/disparo`, icon: "📣" },
       ]}
     >
-      <DisparoView leads={(leads as LeadParaFiltro[] | null) ?? []} initialDisparos={(disparos as DisparoRow[] | null) ?? []} />
+      <DisparoView
+        clienteId={clienteId}
+        leads={(leads as LeadParaFiltro[] | null) ?? []}
+        initialDisparos={(disparos as DisparoRow[] | null) ?? []}
+      />
     </AppShell>
   );
 }
