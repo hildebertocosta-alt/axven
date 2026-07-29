@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 
-export function PortalTabs({ slug, active }: { slug: string; active: "kanban" | "conversas" }) {
+export function PortalTabs({ slug, active }: { slug: string; active: "kanban" | "conversas" | "disparo" }) {
   const tabs = [
     { key: "kanban" as const, label: "Kanban", href: `/crm/${slug}` },
     { key: "conversas" as const, label: "Conversas", href: `/crm/${slug}/conversas` },
+    { key: "disparo" as const, label: "Disparo", href: `/crm/${slug}/disparo` },
   ];
 
   return (

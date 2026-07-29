@@ -46,6 +46,7 @@ export default async function CrmKanbanPage({ params }: Props) {
       sidebarItems={[
         { label: "Kanban", href: `/crm/${slug}`, icon: "🧲" },
         { label: "Conversas", href: `/crm/${slug}/conversas`, icon: "💬" },
+        { label: "Disparo", href: `/crm/${slug}/disparo`, icon: "📣" },
       ]}
     >
       <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={(leads as LeadRow[] | null) ?? []} />

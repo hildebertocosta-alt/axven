@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "../../../components/dashboard/AppShell";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { LogoutButton } from "../LogoutButton";
-import { ConversasView, type LeadResumo } from "./ConversasView";
+import { DisparoView, type LeadParaFiltro, type DisparoRow } from "./DisparoView";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -17,7 +17,7 @@ type ClienteRow = {
   slug: string;
 };
 
-export default async function CrmConversasPage({ params }: Props) {
+export default async function CrmDisparoPage({ params }: Props) {
   const { slug } = await params;
 
   const { data: cliente } = await supabaseAdmin
@@ -30,20 +30,25 @@ export default async function CrmConversasPage({ params }: Props) {
     notFound();
   }
 
+  const clienteId = (cliente as ClienteRow).id;
+
   const { data: leads } = await supabaseAdmin
     .from("leads")
-    .select(
-      "id, nome, telefone, etapa, pausado_ia, criado_em, atualizado_em, origem, campanha, conjunto, anuncio, plataforma, ctwaclid, anuncio_source_id",
-    )
-    .eq("cliente_id", (cliente as ClienteRow).id)
-    .order("atualizado_em", { ascending: false, nullsFirst: false })
-    .order("criado_em", { ascending: false });
+    .select("id, etapa, telefone")
+    .eq("cliente_id", clienteId);
+
+  const { data: disparos } = await supabaseAdmin
+    .from("disparos")
+    .select("id, mensagem, filtro_etapas, total_leads, enviados, falhas, status, criado_em, concluido_em")
+    .eq("cliente_id", clienteId)
+    .order("criado_em", { ascending: false })
+    .limit(20);
 
   return (
     <AppShell
       title={(cliente as ClienteRow).nome}
-      subtitle="CRM · Conversas com leads"
-      activeLabel="Conversas"
+      subtitle="CRM · Disparo de ofertas"
+      activeLabel="Disparo"
       actions={<LogoutButton />}
       variant="portal"
       sidebarItems={[
@@ -52,7 +57,7 @@ export default async function CrmConversasPage({ params }: Props) {
         { label: "Disparo", href: `/crm/${slug}/disparo`, icon: "📣" },
       ]}
     >
-      <ConversasView initialLeads={(leads as LeadResumo[] | null) ?? []} />
+      <DisparoView leads={(leads as LeadParaFiltro[] | null) ?? []} initialDisparos={(disparos as DisparoRow[] | null) ?? []} />
     </AppShell>
   );
 }
