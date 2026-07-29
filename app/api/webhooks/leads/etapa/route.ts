@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { validateWebhookSecret } from "@/app/lib/webhookAuth";
 
-const ETAPAS_VALIDAS = ["lead", "qualificado", "agendado", "fechado"];
+const ETAPAS_VALIDAS = ["lead", "qualificado", "agendado", "fechado", "desqualificado"];
 
 // Chamado pelo workflow n8n do agente de IA depois de ler a conversa de WhatsApp
 // e decidir que o lead avançou de etapa no kanban.
