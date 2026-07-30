@@ -39,5 +39,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Atualiza a atividade do lead. Se foi o lead que escreveu, ele voltou a
+  // interagir: zera o sinalizador de follow-up pra permitir um novo ciclo de
+  // resgate caso ele suma de novo mais pra frente.
+  const leadUpdate: { atualizado_em: string; follow_up_enviado?: boolean } = {
+    atualizado_em: new Date().toISOString(),
+  };
+  if (remetente === "lead") {
+    leadUpdate.follow_up_enviado = false;
+  }
+  await supabaseAdmin.from("leads").update(leadUpdate).eq("id", lead_id);
+
   return NextResponse.json({ mensagem: data });
 }
