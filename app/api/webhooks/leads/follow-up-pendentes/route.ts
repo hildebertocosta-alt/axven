@@ -3,12 +3,15 @@ import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { validateWebhookSecret } from "@/app/lib/webhookAuth";
 
 const HORAS_PARA_FOLLOW_UP = 24;
-const ETAPAS_ATIVAS = ["lead", "qualificado", "agendado"];
+// Só a etapa "lead" (primeiro contato, ainda sem qualificar) entra nessa regra.
+// Qualificado e Agendado já têm seu próprio lembrete (ex: lembrete de
+// compromisso), então não duplicamos o follow-up genérico pra eles.
+const ETAPAS_ATIVAS = ["lead"];
 
 // Chamado pelo workflow n8n de follow-up: devolve os leads deste cliente que
-// mandaram mensagem, receberam resposta (nossa ou da IA), e sumiram por mais
-// de HORAS_PARA_FOLLOW_UP horas sem responder de novo - e que ainda não
-// receberam o lembrete de resgate (follow_up_enviado = false).
+// mandaram a primeira mensagem, receberam resposta (nossa ou da IA), e
+// sumiram por mais de HORAS_PARA_FOLLOW_UP horas sem responder de novo - e
+// que ainda não receberam o lembrete de resgate (follow_up_enviado = false).
 export async function GET(req: NextRequest) {
   const authError = validateWebhookSecret(req);
   if (authError) return authError;
