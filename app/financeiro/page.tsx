@@ -458,32 +458,6 @@ export default function FinanceiroPage() {
     if (!response.ok) setClientes(previous);
   };
 
-  const updateHonorarios = async (clienteId: string, honorarios: number) => {
-    const previous = clientes;
-    setClientes((current) => current.map((item) => (item.id === clienteId ? { ...item, honorarios } : item)));
-
-    const response = await fetch("/api/clientes/atualizar-mrr", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: clienteId, honorarios }),
-    });
-
-    if (!response.ok) setClientes(previous);
-  };
-
-  const updateDiaPagamento = async (clienteId: string, diaPagamento: number) => {
-    const previous = clientes;
-    setClientes((current) => current.map((item) => (item.id === clienteId ? { ...item, dia_pagamento: diaPagamento } : item)));
-
-    const response = await fetch("/api/clientes/atualizar-mrr", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: clienteId, dia_pagamento: diaPagamento }),
-    });
-
-    if (!response.ok) setClientes(previous);
-  };
-
   const updateCobrancaValor = async (id: string, valor: number) => {
     const previous = financeiro;
     setFinanceiro((current) => current.map((item) => (item.id === id ? { ...item, valor } : item)));
@@ -756,9 +730,8 @@ export default function FinanceiroPage() {
                 <tr>
                   <th className="px-4 py-3 font-medium">Cliente</th>
                   <th className="px-4 py-3 font-medium">Telefone (WhatsApp)</th>
-                  <th className="px-4 py-3 font-medium">MRR mensal</th>
-                  <th className="px-4 py-3 font-medium">Dia vencimento</th>
                   <th className="px-4 py-3 font-medium">Margem líquida (mês)</th>
+                  <th className="px-4 py-3 font-medium">LTV (receita acumulada)</th>
                   <th className="px-4 py-3 font-medium">Canal de aquisição</th>
                   <th className="px-4 py-3 font-medium">Status de pagamento</th>
                   <th className="px-4 py-3 font-medium">Fim do contrato</th>
@@ -785,37 +758,6 @@ export default function FinanceiroPage() {
                         />
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          defaultValue={cliente.honorarios ?? 0}
-                          onBlur={(event) => {
-                            const value = Number(event.target.value);
-                            if (!Number.isNaN(value) && value >= 0 && value !== (cliente.honorarios ?? 0)) {
-                              updateHonorarios(cliente.id, value);
-                            }
-                          }}
-                          className="w-28 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none"
-                        />
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <input
-                          type="number"
-                          min={1}
-                          max={31}
-                          defaultValue={cliente.dia_pagamento ?? ""}
-                          onBlur={(event) => {
-                            const value = Number(event.target.value);
-                            if (Number.isInteger(value) && value >= 1 && value <= 31 && value !== cliente.dia_pagamento) {
-                              updateDiaPagamento(cliente.id, value);
-                            }
-                          }}
-                          placeholder="Dia"
-                          className="w-20 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none"
-                        />
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
                         {temMovimentoNoMes ? (
                           <span className={margemCliente >= 0 ? "text-emerald-300" : "text-rose-300"}>
                             {formatCurrency(margemCliente)}
@@ -823,6 +765,9 @@ export default function FinanceiroPage() {
                         ) : (
                           <span className="text-zinc-500">—</span>
                         )}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-white">
+                        {formatCurrency(receitaAcumuladaPorCliente.get(cliente.id) ?? 0)}
                       </td>
                       <td className="px-4 py-3">
                         <select
