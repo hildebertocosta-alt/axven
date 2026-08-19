@@ -304,7 +304,13 @@ export default function FinanceiroPage() {
     [clientes],
   );
 
-  const mrrTotal = useMemo(() => clientes.reduce((sum, item) => sum + (item.honorarios ?? 0), 0), [clientes]);
+  const mrrTotal = useMemo(
+    () =>
+      clientes
+        .filter((item) => item.status_pagamento !== "cancelado")
+        .reduce((sum, item) => sum + (item.honorarios ?? 0), 0),
+    [clientes],
+  );
 
   const receitaPorClienteMes = useMemo(() => {
     const map = new Map<string, number>();
