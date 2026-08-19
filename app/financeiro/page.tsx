@@ -73,6 +73,7 @@ type ClienteRow = {
   nome: string;
   telefone: string | null;
   honorarios: number | null;
+  dia_pagamento: number | null;
   canal_aquisicao: CanalAquisicao | null;
   status_pagamento: StatusPagamento;
   data_fim_contrato: string | null;
@@ -205,6 +206,13 @@ export default function FinanceiroPage() {
   const [savingDespesa, setSavingDespesa] = useState(false);
   const [despesaError, setDespesaError] = useState<string | null>(null);
 
+  const [showCobrancaForm, setShowCobrancaForm] = useState(false);
+  const [cobrancaClienteId, setCobrancaClienteId] = useState("");
+  const [cobrancaValor, setCobrancaValor] = useState("");
+  const [cobrancaDiaVencimento, setCobrancaDiaVencimento] = useState("");
+  const [savingCobranca, setSavingCobranca] = useState(false);
+  const [cobrancaError, setCobrancaError] = useState<string | null>(null);
+
   const loadAll = async () => {
     const response = await fetch("/api/financeiro/data");
     const { financeiro: financeiroData, clientes: clientesData, despesas: despesasData } = await response.json();
@@ -221,6 +229,7 @@ export default function FinanceiroPage() {
         nome: item.nome,
         telefone: item.telefone ?? null,
         honorarios: item.honorarios === null ? null : Number(item.honorarios),
+        dia_pagamento: item.dia_pagamento === null ? null : Number(item.dia_pagamento),
         canal_aquisicao: item.canal_aquisicao ?? null,
         status_pagamento: item.status_pagamento ?? "em_dia",
         data_fim_contrato: item.data_fim_contrato ?? null,
@@ -443,6 +452,122 @@ export default function FinanceiroPage() {
     if (!response.ok) setClientes(previous);
   };
 
+  const updateHonorarios = async (clienteId: string, honorarios: number) => {
+    const previous = clientes;
+    setClientes((current) => current.map((item) => (item.id === clienteId ? { ...item, honorarios } : item)));
+
+    const response = await fetch("/api/clientes/atualizar-mrr", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: clienteId, honorarios }),
+    });
+
+    if (!response.ok) setClientes(previous);
+  };
+
+  const updateDiaPagamento = async (clienteId: string, diaPagamento: number) => {
+    const previous = clientes;
+    setClientes((current) => current.map((item) => (item.id === clienteId ? { ...item, dia_pagamento: diaPagamento } : item)));
+
+    const response = await fetch("/api/clientes/atualizar-mrr", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: clienteId, dia_pagamento: diaPagamento }),
+    });
+
+    if (!response.ok) setClientes(previous);
+  };
+
+  const updateCobrancaValor = async (id: string, valor: number) => {
+    const previous = financeiro;
+    setFinanceiro((current) => current.map((item) => (item.id === id ? { ...item, valor } : item)));
+
+    const response = await fetch("/api/financeiro/atualizar", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, valor }),
+    });
+
+    if (!response.ok) setFinanceiro(previous);
+  };
+
+  const updateCobrancaDiaVencimento = async (id: string, diaVencimento: number) => {
+    const previous = financeiro;
+    setFinanceiro((current) => current.map((item) => (item.id === id ? { ...item, dia_vencimento: diaVencimento } : item)));
+
+    const response = await fetch("/api/financeiro/atualizar", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, dia_vencimento: diaVencimento }),
+    });
+
+    if (!response.ok) setFinanceiro(previous);
+  };
+
+  const deleteCobranca = async (id: string) => {
+    if (!window.confirm("Excluir esta cobrança? Essa ação não pode ser desfeita.")) return;
+
+    const previous = financeiro;
+    setFinanceiro((current) => current.filter((item) => item.id !== id));
+
+    const response = await fetch("/api/financeiro/excluir", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+
+    if (!response.ok) setFinanceiro(previous);
+  };
+
+  const handleAddCobranca = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setCobrancaError(null);
+
+    const valorNumber = Number(cobrancaValor);
+    const diaNumber = Number(cobrancaDiaVencimento);
+
+    if (!cobrancaClienteId) {
+      setCobrancaError("Selecione o cliente.");
+      return;
+    }
+    if (!cobrancaValor || Number.isNaN(valorNumber) || valorNumber <= 0) {
+      setCobrancaError("Informe um valor válido.");
+      return;
+    }
+    if (!cobrancaDiaVencimento || !Number.isInteger(diaNumber) || diaNumber < 1 || diaNumber > 31) {
+      setCobrancaError("Informe um dia de vencimento válido (1 a 31).");
+      return;
+    }
+
+    setSavingCobranca(true);
+    try {
+      const response = await fetch("/api/financeiro/criar-manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cliente_id: cobrancaClienteId,
+          mes_referencia: selectedMonth,
+          valor: valorNumber,
+          dia_vencimento: diaNumber,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        setCobrancaError(payload?.error ?? "Não foi possível lançar a cobrança.");
+        return;
+      }
+
+      setFinanceiro((prev) => [...prev, { ...payload.financeiro, valor: Number(payload.financeiro.valor ?? 0) }]);
+      setCobrancaClienteId("");
+      setCobrancaValor("");
+      setCobrancaDiaVencimento("");
+      setShowCobrancaForm(false);
+    } finally {
+      setSavingCobranca(false);
+    }
+  };
+
   const handleAddDespesa = async (event: React.FormEvent) => {
     event.preventDefault();
     setDespesaError(null);
@@ -626,6 +751,7 @@ export default function FinanceiroPage() {
                   <th className="px-4 py-3 font-medium">Cliente</th>
                   <th className="px-4 py-3 font-medium">Telefone (WhatsApp)</th>
                   <th className="px-4 py-3 font-medium">MRR mensal</th>
+                  <th className="px-4 py-3 font-medium">Dia vencimento</th>
                   <th className="px-4 py-3 font-medium">Margem líquida (mês)</th>
                   <th className="px-4 py-3 font-medium">Canal de aquisição</th>
                   <th className="px-4 py-3 font-medium">Status de pagamento</th>
@@ -652,7 +778,37 @@ export default function FinanceiroPage() {
                           className="w-40 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none placeholder:text-zinc-500"
                         />
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">{formatCurrency(cliente.honorarios ?? 0)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          defaultValue={cliente.honorarios ?? 0}
+                          onBlur={(event) => {
+                            const value = Number(event.target.value);
+                            if (!Number.isNaN(value) && value >= 0 && value !== (cliente.honorarios ?? 0)) {
+                              updateHonorarios(cliente.id, value);
+                            }
+                          }}
+                          className="w-28 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none"
+                        />
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <input
+                          type="number"
+                          min={1}
+                          max={31}
+                          defaultValue={cliente.dia_pagamento ?? ""}
+                          onBlur={(event) => {
+                            const value = Number(event.target.value);
+                            if (Number.isInteger(value) && value >= 1 && value <= 31 && value !== cliente.dia_pagamento) {
+                              updateDiaPagamento(cliente.id, value);
+                            }
+                          }}
+                          placeholder="Dia"
+                          className="w-20 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none"
+                        />
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {temMovimentoNoMes ? (
                           <span className={margemCliente >= 0 ? "text-emerald-300" : "text-rose-300"}>
@@ -857,14 +1013,72 @@ export default function FinanceiroPage() {
         </div>
 
         <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-semibold text-white">Cobranças do mês</h3>
               <p className="mt-1 text-sm text-zinc-400">
-                Gerado automaticamente para todo cliente ativo. O status aqui e o da tabela &ldquo;MRR por cliente&rdquo; são o mesmo dado.
+                Gerado automaticamente para todo cliente ativo. O status aqui e o da tabela &ldquo;MRR por cliente&rdquo; são o mesmo dado. Valor e dia de vencimento são editáveis por lançamento.
               </p>
             </div>
+            <button
+              onClick={() => setShowCobrancaForm((prev) => !prev)}
+              className="rounded-2xl border border-[#D85A30]/40 bg-[#D85A30]/10 px-4 py-2 text-sm font-semibold text-[#f0a480] transition hover:bg-[#D85A30]/20"
+            >
+              {showCobrancaForm ? "Cancelar" : "+ Lançar cobrança avulsa"}
+            </button>
           </div>
+
+          {showCobrancaForm ? (
+            <form onSubmit={handleAddCobranca} className="mt-5 grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-5 md:grid-cols-2 xl:grid-cols-4">
+              <select
+                value={cobrancaClienteId}
+                onChange={(event) => setCobrancaClienteId(event.target.value)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none xl:col-span-2"
+              >
+                <option value="" disabled className="bg-zinc-900 text-white">
+                  Selecionar cliente
+                </option>
+                {clientes.map((cliente) => (
+                  <option key={cliente.id} value={cliente.id} className="bg-zinc-900 text-white">
+                    {cliente.nome}
+                  </option>
+                ))}
+              </select>
+              <label className="flex flex-col gap-1 text-xs font-medium text-zinc-400">
+                Valor (R$)
+                <input
+                  type="number"
+                  min={0.01}
+                  step={0.01}
+                  value={cobrancaValor}
+                  onChange={(event) => setCobrancaValor(event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-zinc-400">
+                Dia de vencimento
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={cobrancaDiaVencimento}
+                  onChange={(event) => setCobrancaDiaVencimento(event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                />
+              </label>
+
+              <div className="flex items-center gap-3 xl:col-span-4">
+                <button
+                  type="submit"
+                  disabled={savingCobranca}
+                  className="rounded-2xl border border-[#D85A30]/40 bg-[#D85A30] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#c14f28] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {savingCobranca ? "Salvando..." : `Lançar para ${formatMonthLabel(selectedMonth)}`}
+                </button>
+                {cobrancaError ? <p className="text-sm text-rose-300">{cobrancaError}</p> : null}
+              </div>
+            </form>
+          ) : null}
 
           <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10">
             <table className="min-w-full divide-y divide-white/10 text-sm">
@@ -882,8 +1096,36 @@ export default function FinanceiroPage() {
                   payments.map((item) => (
                     <tr key={item.id}>
                       <td className="px-4 py-3 font-medium text-white">{item.client}</td>
-                      <td className="px-4 py-3">{formatCurrency(item.value)}</td>
-                      <td className="px-4 py-3">{item.dueDay}</td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          defaultValue={item.value}
+                          onBlur={(event) => {
+                            const value = Number(event.target.value);
+                            if (!Number.isNaN(value) && value >= 0 && value !== item.value) {
+                              updateCobrancaValor(item.id, value);
+                            }
+                          }}
+                          className="w-24 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min={1}
+                          max={31}
+                          defaultValue={item.dueDay}
+                          onBlur={(event) => {
+                            const value = Number(event.target.value);
+                            if (Number.isInteger(value) && value >= 1 && value <= 31 && value !== item.dueDay) {
+                              updateCobrancaDiaVencimento(item.id, value);
+                            }
+                          }}
+                          className="w-16 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none"
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         {item.rawStatus === "pendente" ? (
                           <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusClass(item.computedStatus)}`}>
@@ -922,6 +1164,12 @@ export default function FinanceiroPage() {
                               Recebido com atraso
                             </span>
                           ) : null}
+                          <button
+                            onClick={() => deleteCobranca(item.id)}
+                            className="w-fit text-xs font-medium text-rose-300 transition hover:text-rose-200"
+                          >
+                            Excluir
+                          </button>
                         </div>
                       </td>
                     </tr>
