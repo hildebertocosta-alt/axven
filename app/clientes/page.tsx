@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "../components/dashboard/AppShell";
-import { supabase } from "../lib/supabase";
 
 type Cliente = {
   id: string;
@@ -30,6 +29,7 @@ function statusLabel(status: string | null) {
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
 
@@ -37,13 +37,23 @@ export default function ClientesPage() {
     let mounted = true;
     async function carregar() {
       setLoading(true);
-      const { data } = await supabase
-        .from("clientes")
-        .select("id,nome,nicho,score,status,status_pagamento,honorarios,data_fim_contrato")
-        .order("nome");
-      if (mounted) {
-        setClientes((data as Cliente[]) || []);
-        setLoading(false);
+      setErro(null);
+      try {
+        const response = await fetch("/api/dashboard/data", { cache: "no-store" });
+        if (!response.ok) throw new Error(`Falha ao carregar clientes (${response.status})`);
+        const payload = await response.json();
+        if (mounted) {
+          setClientes(
+            (payload.clientes ?? []).map((item: Cliente) => ({
+              ...item,
+              honorarios: item.honorarios === null ? null : Number(item.honorarios),
+            })),
+          );
+        }
+      } catch (error) {
+        if (mounted) setErro(error instanceof Error ? error.message : "Falha ao carregar clientes");
+      } finally {
+        if (mounted) setLoading(false);
       }
     }
     carregar();
@@ -57,8 +67,8 @@ export default function ClientesPage() {
     return buscaOk && filtroOk;
   }), [clientes, busca, filtro]);
 
-  const ativos = clientes.filter((c) => c.status === "ativo").length;
-  const receita = clientes.filter((c) => c.status === "ativo").reduce((s, c) => s + Number(c.honorarios || 0), 0);
+  const ativos = clientes.filter((c) => c.status_pagamento !== "cancelado").length;
+  const receita = clientes.filter((c) => c.status_pagamento !== "cancelado").reduce((s, c) => s + Number(c.honorarios || 0), 0);
   const atrasados = clientes.filter((c) => c.status_pagamento === "atrasado").length;
 
   return (
@@ -115,7 +125,8 @@ export default function ClientesPage() {
             </table>
           </div>
           {loading && <div className="p-10 text-center text-sm text-zinc-600">Carregando clientes...</div>}
-          {!loading && filtrados.length === 0 && <div className="p-10 text-center text-sm text-zinc-600">Nenhum cliente encontrado.</div>}
+          {!loading && erro && <div className="p-10 text-center text-sm text-rose-400">{erro}</div>}
+          {!loading && !erro && filtrados.length === 0 && <div className="p-10 text-center text-sm text-zinc-600">Nenhum cliente encontrado.</div>}
         </section>
       </div>
     </AppShell>
