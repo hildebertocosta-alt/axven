@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const { data: cliente, error: clienteError } = await supabaseAdmin
     .from("clientes")
-    .select("id,nome,meta_ad_account_id")
+    .select("id,nome,meta_account_id")
     .eq("id", clienteId)
     .single();
   if (clienteError || !cliente) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
@@ -48,9 +48,9 @@ export async function PATCH(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("clientes")
-    .update({ meta_ad_account_id: String(account_id) })
+    .update({ meta_account_id: String(account_id) })
     .eq("id", cliente_id)
-    .select("id,nome,meta_ad_account_id")
+    .select("id,nome,meta_account_id")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
