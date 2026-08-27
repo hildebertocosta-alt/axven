@@ -13,7 +13,7 @@ type Cliente = Record<string, unknown> & {
   status_pagamento?: string | null;
   score?: number | null;
   data_fim_contrato?: string | null;
-  meta_ad_account_id?: string | null;
+  meta_account_id?: string | null;
 };
 type Financeiro = { id: string; valor?: number | null; status?: string | null; mes_referencia?: string | null; dia_vencimento?: number | null };
 type Tarefa = { id: string; titulo?: string | null; prioridade?: string | null; concluido?: boolean | null };
@@ -47,7 +47,7 @@ export default function Cliente360Page() {
         setCliente(data.cliente);
         setFinanceiro(data.financeiro ?? []);
         setTarefas(data.tarefas ?? []);
-        setSelectedAccount(data.cliente?.meta_ad_account_id ?? "");
+        setSelectedAccount(data.cliente?.meta_account_id ?? "");
       } catch (e) {
         setErro(e instanceof Error ? e.message : "Falha ao carregar cliente");
       } finally {
@@ -65,7 +65,7 @@ export default function Cliente360Page() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Falha ao carregar contas Meta");
       setMetaContas(data.contas ?? []);
-      setSelectedAccount(data.cliente?.meta_ad_account_id ?? "");
+      setSelectedAccount(data.cliente?.meta_account_id ?? "");
       setMetaLoaded(true);
     } catch (e) {
       setMetaErro(e instanceof Error ? e.message : "Falha ao carregar contas Meta");
@@ -92,7 +92,7 @@ export default function Cliente360Page() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Falha ao vincular conta Meta");
-      setCliente((prev) => prev ? { ...prev, meta_ad_account_id: data.cliente?.meta_ad_account_id ?? selectedAccount } : prev);
+      setCliente((prev) => prev ? { ...prev, meta_account_id: data.cliente?.meta_account_id ?? selectedAccount } : prev);
       setMetaSuccess(`Conta ${data.conta?.name || selectedAccount} vinculada com sucesso.`);
     } catch (e) {
       setMetaErro(e instanceof Error ? e.message : "Falha ao vincular conta Meta");
@@ -107,7 +107,7 @@ export default function Cliente360Page() {
   const pendentes = tarefas.filter((t) => !t.concluido);
   const ultimoFinanceiro = financeiro[0];
   const tabs = ["Visão geral", "Campanhas", "Leads", "Criativos", "Automações", "Financeiro", "Tarefas", "Documentos", "Histórico"];
-  const contaVinculada = metaContas.find((c) => c.account_id === cliente.meta_ad_account_id);
+  const contaVinculada = metaContas.find((c) => c.account_id === cliente.meta_account_id);
 
   return (
     <AppShell title={cliente.nome} subtitle="Cliente 360º · Central operacional" activeLabel="Clientes">
@@ -124,13 +124,7 @@ export default function Cliente360Page() {
 
         <div className="flex gap-1 overflow-x-auto border-b border-white/[0.07] pb-px">
           {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => abrirAba(tab)}
-              className={`whitespace-nowrap border-b-2 px-4 py-3 text-xs font-medium transition ${activeTab === tab ? "border-[#caa45c] text-[#d7b66f]" : "border-transparent text-zinc-600 hover:text-zinc-300"}`}
-            >
-              {tab}
-            </button>
+            <button key={tab} onClick={() => abrirAba(tab)} className={`whitespace-nowrap border-b-2 px-4 py-3 text-xs font-medium transition ${activeTab === tab ? "border-[#caa45c] text-[#d7b66f]" : "border-transparent text-zinc-600 hover:text-zinc-300"}`}>{tab}</button>
           ))}
         </div>
 
@@ -149,7 +143,7 @@ export default function Cliente360Page() {
               <div className="rounded-2xl border border-white/[0.07] bg-[#111316] p-6">
                 <div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[0.15em] text-zinc-600">Operação</p><h3 className="mt-2 text-lg font-semibold">Resumo executivo</h3></div><span className="text-xs text-zinc-600">Dados reais disponíveis</span></div>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                  {[["Nicho", cliente.nicho], ["Telefone", cliente.telefone], ["Canal", cliente.canal], ["Conta Meta", cliente.meta_ad_account_id]].map(([k,v]) => <div key={String(k)} className="rounded-xl border border-white/[0.06] bg-[#0c0e10] p-4"><p className="text-[10px] uppercase tracking-[0.14em] text-zinc-600">{String(k)}</p><p className="mt-2 text-sm text-zinc-300">{text(v)}</p></div>)}
+                  {[["Nicho", cliente.nicho], ["Telefone", cliente.telefone], ["Canal", cliente.canal], ["Conta Meta", cliente.meta_account_id]].map(([k,v]) => <div key={String(k)} className="rounded-xl border border-white/[0.06] bg-[#0c0e10] p-4"><p className="text-[10px] uppercase tracking-[0.14em] text-zinc-600">{String(k)}</p><p className="mt-2 text-sm text-zinc-300">{text(v)}</p></div>)}
                 </div>
               </div>
 
@@ -179,25 +173,11 @@ export default function Cliente360Page() {
 
               {!metaLoading && !metaErro && (
                 <div className="mt-6 flex flex-col gap-3 md:flex-row">
-                  <select
-                    value={selectedAccount}
-                    onChange={(e) => setSelectedAccount(e.target.value)}
-                    className="h-11 min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-[#0c0e10] px-4 text-sm text-zinc-300 outline-none focus:border-[#caa45c]/50"
-                  >
+                  <select value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)} className="h-11 min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-[#0c0e10] px-4 text-sm text-zinc-300 outline-none focus:border-[#caa45c]/50">
                     <option value="">Selecione a conta de anúncios...</option>
-                    {metaContas.map((conta) => (
-                      <option key={conta.account_id} value={conta.account_id}>
-                        {(conta.name || conta.business_name || "Conta Meta")} · {conta.account_id}
-                      </option>
-                    ))}
+                    {metaContas.map((conta) => <option key={conta.account_id} value={conta.account_id}>{(conta.name || conta.business_name || "Conta Meta")} · {conta.account_id}</option>)}
                   </select>
-                  <button
-                    onClick={vincularContaMeta}
-                    disabled={!selectedAccount || savingMeta}
-                    className="h-11 rounded-xl bg-[#caa45c] px-5 text-sm font-semibold text-[#111214] transition hover:bg-[#dab76f] disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {savingMeta ? "Vinculando..." : "Vincular conta"}
-                  </button>
+                  <button onClick={vincularContaMeta} disabled={!selectedAccount || savingMeta} className="h-11 rounded-xl bg-[#caa45c] px-5 text-sm font-semibold text-[#111214] transition hover:bg-[#dab76f] disabled:cursor-not-allowed disabled:opacity-40">{savingMeta ? "Vinculando..." : "Vincular conta"}</button>
                 </div>
               )}
             </div>
@@ -205,11 +185,11 @@ export default function Cliente360Page() {
             <div className="rounded-2xl border border-white/[0.07] bg-[#111316] p-6">
               <p className="text-xs uppercase tracking-[0.15em] text-zinc-600">Status da integração</p>
               <h3 className="mt-2 text-lg font-semibold">Campanhas</h3>
-              {cliente.meta_ad_account_id ? (
+              {cliente.meta_account_id ? (
                 <div className="mt-6">
                   <span className="inline-flex rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">● Conta vinculada</span>
                   <p className="mt-4 text-sm font-medium text-zinc-300">{contaVinculada?.name || contaVinculada?.business_name || "Conta Meta"}</p>
-                  <p className="mt-1 text-xs text-zinc-600">ID {cliente.meta_ad_account_id}</p>
+                  <p className="mt-1 text-xs text-zinc-600">ID {cliente.meta_account_id}</p>
                   <p className="mt-5 text-sm text-zinc-500">A conta está pronta. O próximo bloco será a listagem das campanhas reais e suas métricas.</p>
                 </div>
               ) : (
