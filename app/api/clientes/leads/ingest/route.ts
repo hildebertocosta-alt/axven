@@ -1,27 +1,27 @@
-import { createHash, timingSafeEqual } from "crypto";
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
-
-const N8N_INGEST_SECRET_SHA256 = "f1c1e693aeff72cb710fbb085b960c0983d28b4efbce4c78598bc3789619ab9f";
 
 function clean(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function safeEqual(a: string, b: string) {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  return aBuf.length === bBuf.length && timingSafeEqual(aBuf, bBuf);
+}
+
 function isAuthorized(provided: string | null) {
   if (!provided) return false;
 
-  const authSecret = process.env.AUTH_SECRET;
-  if (authSecret) {
-    const providedBuf = Buffer.from(provided);
-    const expectedBuf = Buffer.from(authSecret);
-    if (providedBuf.length === expectedBuf.length && timingSafeEqual(providedBuf, expectedBuf)) return true;
-  }
+  const ingestSecret = process.env.AXVEN_N8N_INGEST_SECRET;
+  if (ingestSecret && safeEqual(provided, ingestSecret)) return true;
 
-  const digest = createHash("sha256").update(provided).digest("hex");
-  const digestBuf = Buffer.from(digest);
-  const expectedDigestBuf = Buffer.from(N8N_INGEST_SECRET_SHA256);
-  return digestBuf.length === expectedDigestBuf.length && timingSafeEqual(digestBuf, expectedDigestBuf);
+  const authSecret = process.env.AUTH_SECRET;
+  if (authSecret && safeEqual(provided, authSecret)) return true;
+
+  return false;
 }
 
 export async function POST(req: NextRequest) {
@@ -77,7 +77,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const { data, error } = await supabaseAdmin.from("leads").insert({ ...payload, criado_em: new Date().toISOString(), pausado_ia: false, follow_up_enviado: false }).select("*").single();
+  const { data, error } = await supabaseAdmin
+    .from("leads")
+    .insert({ ...payload, criado_em: new Date().toISOString(), pausado_ia: false, follow_up_enviado: false })
+    .select("*")
+    .single();
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true, action: "created", cliente: { id: cliente.id, nome: cliente.nome }, lead: data }, { status: 201 });
