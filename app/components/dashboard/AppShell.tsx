@@ -3,7 +3,7 @@ import { Sidebar, type NavItem } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 const navItems = [
-  { label: "Dashboard", href: "/dashboard", icon: "◉" },
+  { label: "Dashboard", href: "/dashboard/executivo", icon: "◉" },
   { label: "Clientes", href: "/clientes", icon: "◎" },
   { label: "Financeiro", href: "/financeiro", icon: "💰" },
   { label: "Criativos", href: "/criativos", icon: "◌" },
