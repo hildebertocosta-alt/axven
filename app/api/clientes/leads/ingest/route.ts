@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 
-const N8N_INGEST_SECRET_SHA256 = "8fd5be5cf8f60a5da4f641ef6f92c89127123276356d3994537440731520e049";
+const N8N_INGEST_SECRET_SHA256 = "f1c1e693aeff72cb710fbb085b960c0983d28b4efbce4c78598bc3789619ab9f";
 
 function clean(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
