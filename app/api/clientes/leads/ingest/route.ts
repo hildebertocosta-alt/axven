@@ -1,14 +1,32 @@
+import { createHash, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
+
+const N8N_INGEST_SECRET_SHA256 = "8fd5be5cf8f60a5da4f641ef6f92c89127123276356d3994537440731520e049";
 
 function clean(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function isAuthorized(provided: string | null) {
+  if (!provided) return false;
+
+  const authSecret = process.env.AUTH_SECRET;
+  if (authSecret) {
+    const providedBuf = Buffer.from(provided);
+    const expectedBuf = Buffer.from(authSecret);
+    if (providedBuf.length === expectedBuf.length && timingSafeEqual(providedBuf, expectedBuf)) return true;
+  }
+
+  const digest = createHash("sha256").update(provided).digest("hex");
+  const digestBuf = Buffer.from(digest);
+  const expectedDigestBuf = Buffer.from(N8N_INGEST_SECRET_SHA256);
+  return digestBuf.length === expectedDigestBuf.length && timingSafeEqual(digestBuf, expectedDigestBuf);
+}
+
 export async function POST(req: NextRequest) {
-  const expected = process.env.AUTH_SECRET;
   const provided = req.headers.get("x-axven-secret");
-  if (!expected || provided !== expected) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  if (!isAuthorized(provided)) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
