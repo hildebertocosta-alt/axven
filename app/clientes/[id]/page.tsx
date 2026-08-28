@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { AppShell } from "../../components/dashboard/AppShell";
+import { LeadsPanel } from "./LeadsPanel";
 
 type Cliente = Record<string, unknown> & {
   id: string;
@@ -209,7 +210,9 @@ export default function Cliente360Page() {
           </>}
         </div>}
 
-        {activeTab !== "Visão geral" && activeTab !== "Campanhas" && <section className="rounded-2xl border border-white/[0.07] bg-[#111316] p-10 text-center"><p className="text-xs uppercase tracking-[0.15em] text-[#caa45c]">{activeTab}</p><h3 className="mt-3 text-lg font-semibold text-zinc-200">Módulo em construção</h3><p className="mt-2 text-sm text-zinc-600">Esta área será conectada aos dados reais na próxima etapa.</p></section>}
+        {activeTab === "Leads" && <LeadsPanel clienteId={params.id} metaLeads30d={resumo?.leads ?? null} />}
+
+        {activeTab !== "Visão geral" && activeTab !== "Campanhas" && activeTab !== "Leads" && <section className="rounded-2xl border border-white/[0.07] bg-[#111316] p-10 text-center"><p className="text-xs uppercase tracking-[0.15em] text-[#caa45c]">{activeTab}</p><h3 className="mt-3 text-lg font-semibold text-zinc-200">Módulo em construção</h3><p className="mt-2 text-sm text-zinc-600">Esta área será conectada aos dados reais na próxima etapa.</p></section>}
       </div>
     </AppShell>
   );
