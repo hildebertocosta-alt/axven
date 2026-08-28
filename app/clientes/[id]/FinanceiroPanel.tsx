@@ -1,0 +1,23 @@
+"use client";
+
+type Financeiro = Record<string, unknown> & { id:string; valor?:number|null; status?:string|null; mes_referencia?:string|null; vencimento?:string|null; data_vencimento?:string|null; pago_em?:string|null; data_pagamento?:string|null };
+const money=(v:number)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2}).format(v);
+const date=(v:unknown)=>typeof v==="string"&&v?new Date(v.length===10?`${v}T12:00:00`:v).toLocaleDateString("pt-BR"):"—";
+const month=(v:unknown)=>{if(typeof v!=="string"||!v)return "—"; const m=v.match(/^(\d{4})-(\d{2})/); if(!m)return v; return new Date(Number(m[1]),Number(m[2])-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});};
+
+export function FinanceiroPanel({ honorarios, statusPagamento, registros }:{ honorarios:number|null; statusPagamento:string|null; registros:Financeiro[] }){
+ const total=registros.reduce((s,r)=>s+(Number(r.valor)||0),0); const pagos=registros.filter(r=>String(r.status||"").toLowerCase()==="pago"); const recebido=pagos.reduce((s,r)=>s+(Number(r.valor)||0),0); const pendentes=registros.filter(r=>!["pago","cancelado"].includes(String(r.status||"").toLowerCase()));
+ return <div className="space-y-5">
+  <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+   <Card label="Honorários" value={honorarios!=null?money(honorarios):"—"} detail="Mensalidade contratada"/>
+   <Card label="Situação atual" value={statusPagamento?.replaceAll("_"," ")||"—"} detail="Status financeiro do cliente"/>
+   <Card label="Recebido" value={money(recebido)} detail={`${pagos.length} pagamento${pagos.length===1?"":"s"} registrado${pagos.length===1?"":"s"}`}/>
+   <Card label="Em aberto" value={money(Math.max(0,total-recebido))} detail={`${pendentes.length} registro${pendentes.length===1?"":"s"} pendente${pendentes.length===1?"":"s"}`}/>
+  </section>
+  <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111316]">
+   <div className="border-b border-white/[0.07] px-6 py-5"><p className="text-xs uppercase tracking-[0.15em] text-zinc-600">Financeiro</p><h3 className="mt-2 text-lg font-semibold text-zinc-100">Histórico de cobranças</h3><p className="mt-1 text-xs text-zinc-600">Dados registrados no financeiro da Axven</p></div>
+   <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-[#0c0e10] text-[10px] uppercase tracking-[0.12em] text-zinc-600"><tr><th className="px-6 py-3">Referência</th><th className="px-4 py-3">Valor</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Vencimento</th><th className="px-4 py-3">Pagamento</th></tr></thead><tbody className="divide-y divide-white/[0.06]">{registros.map(r=><tr key={r.id} className="text-zinc-300"><td className="px-6 py-4 capitalize">{month(r.mes_referencia)}</td><td className="px-4 py-4 font-medium text-zinc-200">{r.valor!=null?money(Number(r.valor)):"—"}</td><td className="px-4 py-4"><span className={`rounded-full border px-2.5 py-1 text-xs ${String(r.status).toLowerCase()==="pago"?"border-emerald-500/20 bg-emerald-500/10 text-emerald-300":"border-amber-500/20 bg-amber-500/10 text-amber-300"}`}>{r.status?.replaceAll("_"," ")||"—"}</span></td><td className="px-4 py-4 text-zinc-500">{date(r.vencimento??r.data_vencimento)}</td><td className="px-4 py-4 text-zinc-500">{date(r.pago_em??r.data_pagamento)}</td></tr>)}</tbody></table>{!registros.length&&<p className="p-8 text-center text-sm text-zinc-600">Nenhum lançamento financeiro registrado.</p>}</div>
+  </section>
+ </div>;
+}
+function Card({label,value,detail}:{label:string;value:string;detail:string}){return <div className="rounded-2xl border border-white/[0.07] bg-[#111316] p-5"><p className="text-[11px] uppercase tracking-[0.14em] text-zinc-600">{label}</p><p className="mt-3 text-2xl font-semibold capitalize text-zinc-100">{value}</p><p className="mt-2 text-xs text-zinc-600">{detail}</p></div>}
