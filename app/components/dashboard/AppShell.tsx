@@ -8,7 +8,7 @@ const navItems = [
   { label: "Financeiro", href: "/financeiro/executivo", icon: "💰" },
   { label: "Criativos", href: "/criativos/executivo", icon: "◌" },
   { label: "Relatórios", href: "/relatorios/executivo", icon: "◐" },
-  { label: "Agenda", href: "/dashboard/agenda", icon: "📅" },
+  { label: "Agenda", href: "/dashboard/agenda/executivo", icon: "📅" },
   { label: "CRM", href: "/pipeline", icon: "🧲" },
   { label: "Integrações", href: "/integracoes", icon: "🔌" },
 ];
