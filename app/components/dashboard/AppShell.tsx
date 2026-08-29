@@ -6,7 +6,7 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard/executivo", icon: "◉" },
   { label: "Clientes", href: "/clientes", icon: "◎" },
   { label: "Financeiro", href: "/financeiro/executivo", icon: "💰" },
-  { label: "Criativos", href: "/criativos", icon: "◌" },
+  { label: "Criativos", href: "/criativos/executivo", icon: "◌" },
   { label: "Relatórios", href: "/relatorios", icon: "◐" },
   { label: "Agenda", href: "/dashboard/agenda", icon: "📅" },
   { label: "CRM", href: "/pipeline", icon: "🧲" },
