@@ -7,12 +7,12 @@ export async function GET(req: NextRequest) {
 
   const { data: cliente, error: clienteError } = await supabaseAdmin
     .from("clientes")
-    .select("id,nome,status_pagamento")
+    .select("id,nome,status")
     .eq("id", clienteId)
     .single();
 
   if (clienteError || !cliente) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
-  if (cliente.status_pagamento === "cancelado") return NextResponse.json({ error: "Cliente fora da carteira ativa" }, { status: 403 });
+  if (cliente.status === "cancelado") return NextResponse.json({ error: "Cliente fora da carteira ativa" }, { status: 403 });
 
   const { data: leads, error } = await supabaseAdmin
     .from("leads")
