@@ -3,12 +3,12 @@ import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 
 const GRAPH_VERSION = "v21.0";
 
-type ClienteRow = { id: string; nome: string; meta_account_id: string | null; tipo_campanha: string | null };
+type ClienteRow = { id: string; nome: string; meta_account_id: string | null; tipo_campanha: string | null; status: string | null };
 type MetaAction = { action_type: string; value: string };
 
 export async function GET() {
   const [{ data: clientes }, { data: conexao }] = await Promise.all([
-    supabaseAdmin.from("clientes").select("id, nome, meta_account_id, tipo_campanha").order("nome"),
+    supabaseAdmin.from("clientes").select("id, nome, meta_account_id, tipo_campanha, status").neq("status", "cancelado").order("nome"),
     supabaseAdmin
       .from("integracao_meta")
       .select("access_token")
@@ -30,7 +30,6 @@ export async function GET() {
       }
 
       const tipo = cliente.tipo_campanha ?? "lead";
-
       const params = new URLSearchParams({
         fields: "spend,reach,clicks,impressions,frequency,actions,action_values",
         date_preset: "last_7d",
@@ -38,18 +37,12 @@ export async function GET() {
       });
 
       try {
-        const res = await fetch(
-          `https://graph.facebook.com/${GRAPH_VERSION}/act_${cliente.meta_account_id}/insights?${params}`,
-        );
+        const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/act_${cliente.meta_account_id}/insights?${params}`);
         const data = await res.json();
         const insight = data?.data?.[0];
 
         if (data?.error || !insight) {
-          return {
-            cliente_id: cliente.id,
-            cliente_nome: cliente.nome,
-            erro: data?.error?.message ?? "Sem dados nos últimos 7 dias",
-          };
+          return { cliente_id: cliente.id, cliente_nome: cliente.nome, erro: data?.error?.message ?? "Sem dados nos últimos 7 dias" };
         }
 
         const investimento = parseFloat(insight.spend ?? "0");
@@ -66,22 +59,7 @@ export async function GET() {
         const receita = parseFloat(actionValues.find((a) => a.action_type === "omni_purchase")?.value ?? "0");
         const roi = investimento > 0 && receita > 0 ? receita / investimento : null;
 
-        return {
-          cliente_id: cliente.id,
-          cliente_nome: cliente.nome,
-          tipo,
-          investimento,
-          alcance,
-          cliques,
-          impressoes,
-          frequencia,
-          cpm,
-          leads,
-          cpl,
-          pedidos,
-          receita,
-          roi,
-        };
+        return { cliente_id: cliente.id, cliente_nome: cliente.nome, tipo, investimento, alcance, cliques, impressoes, frequencia, cpm, leads, cpl, pedidos, receita, roi };
       } catch {
         return { cliente_id: cliente.id, cliente_nome: cliente.nome, erro: "Falha ao consultar a Meta" };
       }
