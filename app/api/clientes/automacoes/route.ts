@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 
 const CLIENT_WORKFLOWS: Record<string, string> = {
   "1b5b59aa-c29f-43fc-91e6-bf20855430b3": "aEOFROFiFzE3pNpG",
@@ -17,6 +18,16 @@ async function bridge(path: string) {
 export async function GET(req: NextRequest) {
   const clienteId = req.nextUrl.searchParams.get("cliente_id")?.trim();
   if (!clienteId) return NextResponse.json({ error: "cliente_id obrigatório" }, { status: 400 });
+
+  const { data: cliente, error: clienteError } = await supabaseAdmin
+    .from("clientes")
+    .select("id,status")
+    .eq("id", clienteId)
+    .single();
+
+  if (clienteError || !cliente) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
+  if (cliente.status === "cancelado") return NextResponse.json({ error: "Cliente fora da carteira ativa" }, { status: 403 });
+
   const workflowId = CLIENT_WORKFLOWS[clienteId];
   if (!workflowId) return NextResponse.json({ error: "Cliente ainda não possui workflow n8n vinculado" }, { status: 404 });
 
