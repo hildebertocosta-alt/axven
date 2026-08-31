@@ -25,8 +25,9 @@ export async function GET(req: NextRequest) {
   if (!clienteId) return NextResponse.json({ error: "cliente_id obrigatório" }, { status: 400 });
   if ((since && !until) || (!since && until)) return NextResponse.json({ error: "Informe data inicial e final" }, { status: 400 });
 
-  const { data: cliente, error: clienteError } = await supabaseAdmin.from("clientes").select("id,nome,meta_account_id").eq("id", clienteId).single();
+  const { data: cliente, error: clienteError } = await supabaseAdmin.from("clientes").select("id,nome,status,meta_account_id").eq("id", clienteId).single();
   if (clienteError || !cliente) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
+  if (cliente.status === "cancelado") return NextResponse.json({ error: "Cliente fora da carteira ativa" }, { status: 403 });
   if (!cliente.meta_account_id) return NextResponse.json({ error: "Cliente sem conta Meta vinculada" }, { status: 400 });
 
   const { data: conexao } = await supabaseAdmin.from("integracao_meta").select("access_token").order("conectado_em", { ascending: false }).limit(1).maybeSingle();
