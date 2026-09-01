@@ -8,6 +8,8 @@ const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/webhooks/"];
 
 function isPublicPath(pathname: string) {
   if (pathname === "/login") return true;
+  // Política de privacidade precisa ser pública para validação da Meta e acesso dos titulares.
+  if (pathname === "/politica-de-privacidade") return true;
   // /crm/* tem seu próprio sistema de autenticação (portal do cliente), tratado abaixo.
   // Comparação exata + prefixo com barra, para não liberar por engano algo como /crm-leads.
   if (pathname === "/crm" || pathname.startsWith("/crm/")) return true;
@@ -55,39 +57,18 @@ export async function proxy(request: NextRequest) {
     );
 
     const slug = pathname.split("/")[2];
-    if (!slug) {
-      return response;
-    }
+    if (!slug) return response;
 
     const deny = () => NextResponse.redirect(new URL("/crm/login?erro=acesso_negado", request.url));
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.redirect(new URL("/crm/login", request.url));
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.redirect(new URL("/crm/login", request.url));
-    }
-
-    const { data: vinculo } = await supabase
-      .from("crm_usuarios")
-      .select("cliente_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!vinculo) {
-      return deny();
-    }
+    const { data: vinculo } = await supabase.from("crm_usuarios").select("cliente_id").eq("user_id", user.id).single();
+    if (!vinculo) return deny();
 
     const { data: cliente } = await supabase.from("clientes").select("id, status_pagamento").eq("slug", slug).single();
-
-    if (!cliente || cliente.id !== vinculo.cliente_id) {
-      return deny();
-    }
-
-    if (cliente.status_pagamento === "cancelado") {
-      return deny();
-    }
+    if (!cliente || cliente.id !== vinculo.cliente_id) return deny();
+    if (cliente.status_pagamento === "cancelado") return deny();
 
     return response;
   }
