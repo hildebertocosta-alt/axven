@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
     clean(body.nome) ||
     clean(body.name) ||
     clean(message.senderName) ||
+    clean(chat.wa_name) ||
     clean(chat.wa_contactName) ||
     clean(chat.name) ||
     "Lead sem nome";
