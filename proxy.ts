@@ -8,6 +8,8 @@ const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/webhooks/"];
 
 function isPublicPath(pathname: string) {
   if (pathname === "/login") return true;
+  // Política de privacidade precisa ser pública para validação da Meta e acesso dos titulares.
+  if (pathname === "/politica-de-privacidade") return true;
   // /crm/* tem seu próprio sistema de autenticação (portal do cliente), tratado abaixo.
   // Comparação exata + prefixo com barra, para não liberar por engano algo como /crm-leads.
   if (pathname === "/crm" || pathname.startsWith("/crm/")) return true;
