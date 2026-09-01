@@ -57,18 +57,39 @@ export async function proxy(request: NextRequest) {
     );
 
     const slug = pathname.split("/")[2];
-    if (!slug) return response;
+    if (!slug) {
+      return response;
+    }
 
     const deny = () => NextResponse.redirect(new URL("/crm/login?erro=acesso_negado", request.url));
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.redirect(new URL("/crm/login", request.url));
 
-    const { data: vinculo } = await supabase.from("crm_usuarios").select("cliente_id").eq("user_id", user.id).single();
-    if (!vinculo) return deny();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.redirect(new URL("/crm/login", request.url));
+    }
+
+    const { data: vinculo } = await supabase
+      .from("crm_usuarios")
+      .select("cliente_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!vinculo) {
+      return deny();
+    }
 
     const { data: cliente } = await supabase.from("clientes").select("id, status_pagamento").eq("slug", slug).single();
-    if (!cliente || cliente.id !== vinculo.cliente_id) return deny();
-    if (cliente.status_pagamento === "cancelado") return deny();
+
+    if (!cliente || cliente.id !== vinculo.cliente_id) {
+      return deny();
+    }
+
+    if (cliente.status_pagamento === "cancelado") {
+      return deny();
+    }
 
     return response;
   }
