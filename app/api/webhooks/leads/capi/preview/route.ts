@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
         payload: auditPayload,
         erro: null,
       },
-      { onConflict: "event_id" },
+      { onConflict: "event_id,status" },
     )
     .select("id,event_id,status,criado_em")
     .single();
