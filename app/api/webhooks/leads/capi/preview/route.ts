@@ -78,6 +78,35 @@ export async function POST(req: NextRequest) {
     },
   };
 
+  const auditPayload = {
+    mode: "preview_only",
+    sent_to_meta: false,
+    readiness: { ready: missing.length === 0, missing },
+    event,
+  };
+
+  const { data: audit, error: auditError } = await supabaseAdmin
+    .from("capi_eventos")
+    .upsert(
+      {
+        cliente_id: cliente.id,
+        lead_id: lead.id,
+        event_name: event.event_name,
+        event_id: eventId,
+        status: "preview",
+        payload: auditPayload,
+        erro: null,
+      },
+      { onConflict: "event_id" },
+    )
+    .select("id,event_id,status,criado_em")
+    .single();
+
+  if (auditError) {
+    console.error("Falha ao registrar preview CAPI", auditError);
+    return NextResponse.json({ error: "falha ao registrar auditoria CAPI" }, { status: 500 });
+  }
+
   return NextResponse.json({
     ok: true,
     mode: "preview_only",
@@ -86,5 +115,6 @@ export async function POST(req: NextRequest) {
     lead: { id: lead.id, nome: lead.nome, anuncio_source_id: lead.anuncio_source_id, plataforma: lead.plataforma },
     readiness: { ready: missing.length === 0, missing },
     event,
+    audit,
   });
 }
