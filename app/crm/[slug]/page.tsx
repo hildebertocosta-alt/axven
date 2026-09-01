@@ -15,6 +15,7 @@ type ClienteRow = {
   id: string;
   nome: string;
   slug: string;
+  status: string;
 };
 
 export default async function CrmKanbanPage({ params }: Props) {
@@ -22,11 +23,11 @@ export default async function CrmKanbanPage({ params }: Props) {
 
   const { data: cliente } = await supabaseAdmin
     .from("clientes")
-    .select("id, nome, slug")
+    .select("id, nome, slug, status")
     .eq("slug", slug)
     .single();
 
-  if (!cliente) {
+  if (!cliente || (cliente as ClienteRow).status === "cancelado") {
     notFound();
   }
 
