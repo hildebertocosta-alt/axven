@@ -24,6 +24,16 @@ function money(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+const ETAPAS_VALIDAS = new Set([
+  "lead",
+  "qualificado",
+  "agendado",
+  "proposta_enviada",
+  "fechado",
+  "nao_fechou",
+  "desqualificado",
+]);
+
 export async function POST(req: NextRequest) {
   const authError = validateWebhookSecret(req);
   if (authError) return authError;
@@ -42,6 +52,7 @@ export async function POST(req: NextRequest) {
   const valor = money(body.valor_conversao ?? body.valor ?? body.value);
   const moeda = (clean(body.moeda) || clean(body.currency) || "BRL").toUpperCase();
   const dataConversao = clean(body.data_conversao) || clean(body.data_compra) || new Date().toISOString();
+  const etapaSolicitada = clean(body.etapa) || "fechado";
 
   if (!clienteId && !clienteSlug) {
     return NextResponse.json({ error: "informe cliente_id ou cliente_slug" }, { status: 400 });
@@ -51,6 +62,9 @@ export async function POST(req: NextRequest) {
   }
   if (!leadId && !telefone && !whatsappLid && !ctwaclid) {
     return NextResponse.json({ error: "informe lead_id, telefone, whatsapp_lid ou ctwaclid" }, { status: 400 });
+  }
+  if (!ETAPAS_VALIDAS.has(etapaSolicitada)) {
+    return NextResponse.json({ error: "etapa invalida para o CRM" }, { status: 400 });
   }
 
   let clienteQuery = supabaseAdmin.from("clientes").select("id,nome,status");
@@ -87,7 +101,7 @@ export async function POST(req: NextRequest) {
   const { data: atualizado, error } = await supabaseAdmin
     .from("leads")
     .update({
-      etapa: clean(body.etapa) || "venda",
+      etapa: etapaSolicitada,
       valor_conversao: valor,
       moeda,
       data_conversao: dataConversao,
