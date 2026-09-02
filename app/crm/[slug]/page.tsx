@@ -50,7 +50,7 @@ export default async function CrmKanbanPage({ params }: Props) {
         { label: "Disparo", href: `/crm/${slug}/disparo`, icon: "📣" },
       ]}
     >
-      <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={(leads as LeadRow[] | null) ?? []} />
+      <KanbanBoard clienteSlug={(cliente as ClienteRow).slug} initialLeads={(leads as LeadRow[] | null) ?? []} />
     </AppShell>
   );
 }
