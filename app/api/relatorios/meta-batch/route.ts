@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 
 const GRAPH_VERSION = "v21.0";
-const FIELDS = "spend,reach,impressions,clicks,ctr,cpc,cpm,frequency,actions";
+const FIELDS = "spend,reach,impressions,clicks,ctr,cpc,cpm,frequency,actions,action_values,purchase_roas";
 const LEAD_PRIORITY = ["lead","onsite_conversion.lead_grouped","offsite_conversion.fb_pixel_lead","onsite_conversion.messaging_conversation_started_7d"];
+const PURCHASE_PRIORITY = ["purchase","omni_purchase","offsite_conversion.fb_pixel_purchase"];
 
 type Action = { action_type?: string; value?: string };
-type Insight = { spend?: string; reach?: string; impressions?: string; clicks?: string; ctr?: string; cpc?: string; cpm?: string; frequency?: string; actions?: Action[] };
+type Insight = { spend?: string; reach?: string; impressions?: string; clicks?: string; ctr?: string; cpc?: string; cpm?: string; frequency?: string; actions?: Action[]; action_values?: Action[]; purchase_roas?: Action[] };
 
 const n = (v: unknown) => { const x = Number(v ?? 0); return Number.isFinite(x) ? x : 0; };
-const leads = (actions: Action[] = []) => { for (const t of LEAD_PRIORITY) { const a = actions.find(x => x.action_type === t && n(x.value) > 0); if (a) return n(a.value); } return 0; };
+const prioritized = (items: Action[] = [], priority: string[]) => { for (const t of priority) { const a = items.find(x => x.action_type === t && n(x.value) > 0); if (a) return n(a.value); } return 0; };
+const leads = (actions: Action[] = []) => prioritized(actions, LEAD_PRIORITY);
+const purchases = (actions: Action[] = []) => prioritized(actions, PURCHASE_PRIORITY);
+const purchaseValue = (values: Action[] = []) => prioritized(values, PURCHASE_PRIORITY);
+const purchaseRoas = (values: Action[] = []) => prioritized(values, ["purchase","omni_purchase","offsite_conversion.fb_pixel_purchase"]);
 
 async function accountInsight(accountId: string, token: string, inicio: string, fim: string) {
   const p = new URLSearchParams({ fields: FIELDS, level: "account", time_range: JSON.stringify({ since: inicio, until: fim }), access_token: token });
@@ -17,8 +22,9 @@ async function accountInsight(accountId: string, token: string, inicio: string, 
   const body = await r.json() as { data?: Insight[]; error?: { message?: string } };
   if (!r.ok || body.error) throw new Error(body.error?.message ?? "Falha Meta Ads");
   const x = body.data?.[0]; if (!x) return null;
-  const l = leads(x.actions); const investimento = n(x.spend);
-  return { investimento, alcance:n(x.reach), impressoes:n(x.impressions), cliques:n(x.clicks), ctr:n(x.ctr), cpc:n(x.cpc), cpm:n(x.cpm), frequencia:n(x.frequency), leads:l, cpl:l ? investimento/l : null };
+  const l = leads(x.actions); const investimento = n(x.spend); const pedidos = purchases(x.actions); const receita = purchaseValue(x.action_values);
+  const roasMeta = purchaseRoas(x.purchase_roas); const roas = roasMeta || (investimento > 0 && receita > 0 ? receita/investimento : null);
+  return { investimento, alcance:n(x.reach), impressoes:n(x.impressions), cliques:n(x.clicks), ctr:n(x.ctr), cpc:n(x.cpc), cpm:n(x.cpm), frequencia:n(x.frequency), leads:l, cpl:l ? investimento/l : null, pedidos, receita_meta:receita, custo_por_pedido:pedidos ? investimento/pedidos : null, roas_meta:roas };
 }
 
 export async function POST(req: NextRequest) {
