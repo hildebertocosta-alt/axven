@@ -1,5 +1,11 @@
-import { redirect } from "next/navigation";
+import InstitucionalPage from "./institucional/page";
+import PublicHomePatch from "./components/PublicHomePatch";
 
 export default function Home() {
-  redirect("/dashboard");
+  return (
+    <>
+      <InstitucionalPage />
+      <PublicHomePatch />
+    </>
+  );
 }
