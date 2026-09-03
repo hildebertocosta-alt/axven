@@ -2,30 +2,40 @@
 
 import { useEffect } from 'react';
 
-const founderSrc = 'data:image/jpeg;base64,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';
-
 export default function PublicHomePatch() {
   useEffect(() => {
-    const founder = document.querySelector<HTMLImageElement>('img[alt*="Hildeberto Junior"]');
-    if (founder) {
-      founder.src = founderSrc;
-      founder.style.objectFit = 'cover';
-      founder.style.objectPosition = 'center center';
+    const founderImage = document.querySelector<HTMLImageElement>('img[alt="Hildeberto Junior, fundador da Axven Digital"]');
+    if (founderImage) {
+      founderImage.src = '/IMG_6518.PNG';
+      founderImage.classList.remove('aspect-[4/5]', 'object-cover', 'object-top');
+      founderImage.classList.add('w-full', 'h-auto', 'object-contain');
+      founderImage.style.display = 'block';
+      founderImage.style.maxHeight = '720px';
+      founderImage.style.objectFit = 'contain';
+      founderImage.style.objectPosition = 'center';
+      founderImage.parentElement?.classList.add('bg-[#111117]');
     }
 
-    document.querySelectorAll('p').forEach((p) => {
-      if (p.textContent?.includes('uma operação focada em mídia para uma empresa')) {
-        p.textContent = p.textContent.replace(
-          'uma operação focada em mídia para uma empresa',
-          'uma operação focada em mídia paga para uma empresa'
-        );
+    const headerBrand = document.querySelector<HTMLAnchorElement>('header a[aria-label="Axven Digital"]');
+    if (headerBrand) {
+      const headerLogo = headerBrand.querySelector<HTMLImageElement>('img');
+      const headerText = headerBrand.querySelector<HTMLDivElement>('div');
+      if (headerLogo) {
+        headerLogo.src = '/AXVEN%20IDV-34.png';
+        headerLogo.alt = 'Axven Digital';
+        headerLogo.className = 'h-10 w-auto object-contain sm:h-11';
+      }
+      if (headerText) headerText.style.display = 'none';
+    }
+
+    document.querySelectorAll('p').forEach((paragraph) => {
+      if (paragraph.textContent?.includes('A Axven nasceu da evolução de uma operação focada em mídia para uma empresa')) {
+        paragraph.textContent = 'A Axven nasceu da evolução de uma operação focada em mídia paga para uma empresa que integra estratégia, tecnologia, automação e dados.';
       }
     });
 
     document.querySelectorAll<HTMLAnchorElement>('a[href="/login"]').forEach((link) => {
-      if (link.textContent?.trim().toLowerCase() === 'área do cliente') {
-        link.remove();
-      }
+      if (link.textContent?.trim() === 'Área do cliente') link.remove();
     });
   }, []);
 
