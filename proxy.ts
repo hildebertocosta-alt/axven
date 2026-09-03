@@ -8,6 +8,7 @@ function isPublicPath(pathname: string) {
   if (pathname === "/") return true;
   if (pathname === "/login") return true;
   if (pathname === "/institucional") return true;
+  if (pathname === "/clinicas") return true;
   if (pathname === "/politica-de-privacidade") return true;
   if (pathname === "/crm" || pathname.startsWith("/crm/")) return true;
   if (/^\/relatorios\/[^/]+$/.test(pathname)) return true;
