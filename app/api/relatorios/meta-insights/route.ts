@@ -42,6 +42,12 @@ type MetaInsight = Record<string, unknown> & {
   ad_name?: string;
 };
 
+type MetaInsightsPayload = {
+  data?: MetaInsight[];
+  paging?: { next?: string };
+  error?: { message?: string };
+};
+
 function toNumber(value: unknown) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -124,15 +130,16 @@ async function fetchInsights(
   let pages = 0;
 
   while (nextUrl && pages < 10) {
-    const response = await fetch(nextUrl, { cache: "no-store" });
-    const payload = await response.json();
-    if (!response.ok || payload?.error) {
-      const message = payload?.error?.message ?? "Falha ao consultar Meta Ads Insights";
+    const response: Response = await fetch(nextUrl, { cache: "no-store" });
+    const payload = (await response.json()) as MetaInsightsPayload;
+
+    if (!response.ok || payload.error) {
+      const message = payload.error?.message ?? "Falha ao consultar Meta Ads Insights";
       throw new Error(message);
     }
 
-    rows.push(...(payload?.data ?? []));
-    nextUrl = payload?.paging?.next ?? null;
+    rows.push(...(payload.data ?? []));
+    nextUrl = payload.paging?.next ?? null;
     pages += 1;
   }
 
