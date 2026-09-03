@@ -34,6 +34,15 @@ export default function PublicHomePatch() {
       }
     });
 
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      if (node.nodeValue?.trim() === 'Aquisição') {
+        node.nodeValue = node.nodeValue.replace('Aquisição', 'Atração');
+      }
+      node = walker.nextNode();
+    }
+
     document.querySelectorAll<HTMLAnchorElement>('a[href="/login"]').forEach((link) => {
       if (link.textContent?.trim() === 'Área do cliente') link.remove();
     });
