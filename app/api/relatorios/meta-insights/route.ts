@@ -15,13 +15,14 @@ const BASE_FIELDS = [
   "cost_per_action_type",
 ].join(",");
 
-const LEAD_ACTION_TYPES = new Set([
+const LEAD_ACTION_PRIORITY = [
   "lead",
   "onsite_conversion.lead_grouped",
   "offsite_conversion.fb_pixel_lead",
   "onsite_conversion.messaging_conversation_started_7d",
-]);
+] as const;
 
+type InsightLevel = "account" | "campaign" | "adset" | "ad";
 type MetaAction = { action_type?: string; value?: string };
 type MetaInsight = Record<string, unknown> & {
   actions?: MetaAction[];
@@ -33,6 +34,12 @@ type MetaInsight = Record<string, unknown> & {
   cpc?: string;
   cpm?: string;
   frequency?: string;
+  campaign_id?: string;
+  campaign_name?: string;
+  adset_id?: string;
+  adset_name?: string;
+  ad_id?: string;
+  ad_name?: string;
 };
 
 function toNumber(value: unknown) {
@@ -40,22 +47,40 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function totalLeads(actions: MetaAction[] = []) {
-  return actions.reduce((total, action) => {
-    if (!action.action_type || !LEAD_ACTION_TYPES.has(action.action_type)) return total;
-    return total + toNumber(action.value);
-  }, 0);
+function resolveLeads(actions: MetaAction[] = []) {
+  for (const actionType of LEAD_ACTION_PRIORITY) {
+    const action = actions.find((item) => item.action_type === actionType && toNumber(item.value) > 0);
+    if (action) {
+      return { leads: toNumber(action.value), lead_action_type: actionType };
+    }
+  }
+  return { leads: 0, lead_action_type: null };
 }
 
-function normalizeInsight(insight: MetaInsight) {
+function normalizeInsight(insight: MetaInsight, level: InsightLevel) {
   const investimento = toNumber(insight.spend);
   const alcance = toNumber(insight.reach);
   const impressoes = toNumber(insight.impressions);
   const cliques = toNumber(insight.clicks);
-  const leads = totalLeads(insight.actions);
+  const { leads, lead_action_type } = resolveLeads(insight.actions);
+
+  let id: string | null = null;
+  let nome: string | null = null;
+  if (level === "campaign") {
+    id = insight.campaign_id ?? null;
+    nome = insight.campaign_name ?? null;
+  } else if (level === "adset") {
+    id = insight.adset_id ?? null;
+    nome = insight.adset_name ?? null;
+  } else if (level === "ad") {
+    id = insight.ad_id ?? null;
+    nome = insight.ad_name ?? null;
+  }
 
   return {
     ...insight,
+    id,
+    nome,
     investimento,
     alcance,
     impressoes,
@@ -65,6 +90,7 @@ function normalizeInsight(insight: MetaInsight) {
     cpm: toNumber(insight.cpm),
     frequencia: toNumber(insight.frequency),
     leads,
+    lead_action_type,
     cpl: leads > 0 ? investimento / leads : null,
   };
 }
@@ -74,35 +100,43 @@ async function fetchInsights(
   accessToken: string,
   periodoInicio: string,
   periodoFim: string,
-  level: "account" | "campaign" | "ad",
+  level: InsightLevel,
 ) {
-  const fields =
+  const hierarchyFields =
     level === "campaign"
-      ? `campaign_id,campaign_name,${BASE_FIELDS}`
-      : level === "ad"
-        ? `campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,${BASE_FIELDS}`
-        : BASE_FIELDS;
+      ? "campaign_id,campaign_name,"
+      : level === "adset"
+        ? "campaign_id,campaign_name,adset_id,adset_name,"
+        : level === "ad"
+          ? "campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,"
+          : "";
 
   const params = new URLSearchParams({
-    fields,
+    fields: `${hierarchyFields}${BASE_FIELDS}`,
     level,
     time_range: JSON.stringify({ since: periodoInicio, until: periodoFim }),
     limit: "500",
     access_token: accessToken,
   });
 
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_VERSION}/act_${accountId}/insights?${params.toString()}`,
-    { cache: "no-store" },
-  );
+  let nextUrl: string | null = `https://graph.facebook.com/${GRAPH_VERSION}/act_${accountId}/insights?${params.toString()}`;
+  const rows: MetaInsight[] = [];
+  let pages = 0;
 
-  const payload = await response.json();
-  if (!response.ok || payload?.error) {
-    const message = payload?.error?.message ?? "Falha ao consultar Meta Ads Insights";
-    throw new Error(message);
+  while (nextUrl && pages < 10) {
+    const response = await fetch(nextUrl, { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok || payload?.error) {
+      const message = payload?.error?.message ?? "Falha ao consultar Meta Ads Insights";
+      throw new Error(message);
+    }
+
+    rows.push(...(payload?.data ?? []));
+    nextUrl = payload?.paging?.next ?? null;
+    pages += 1;
   }
 
-  return (payload?.data ?? []).map((item: MetaInsight) => normalizeInsight(item));
+  return rows.map((item) => normalizeInsight(item, level));
 }
 
 export async function POST(req: NextRequest) {
@@ -133,22 +167,20 @@ export async function POST(req: NextRequest) {
     if (!cliente) {
       return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
     }
-
     if (!cliente.meta_account_id) {
       return NextResponse.json({ error: "Cliente sem conta Meta vinculada" }, { status: 400 });
     }
-
     if (!conexaoMeta?.access_token) {
       return NextResponse.json({ error: "Nenhuma conexão Meta ativa" }, { status: 400 });
     }
-
     if (conexaoMeta.expires_at && new Date(conexaoMeta.expires_at) <= new Date()) {
       return NextResponse.json({ error: "Conexão Meta expirada; reconecte a conta" }, { status: 401 });
     }
 
-    const [conta, campanhas, anuncios] = await Promise.all([
+    const [conta, campanhas, conjuntos, anuncios] = await Promise.all([
       fetchInsights(cliente.meta_account_id, conexaoMeta.access_token, periodo_inicio, periodo_fim, "account"),
       fetchInsights(cliente.meta_account_id, conexaoMeta.access_token, periodo_inicio, periodo_fim, "campaign"),
+      fetchInsights(cliente.meta_account_id, conexaoMeta.access_token, periodo_inicio, periodo_fim, "adset"),
       fetchInsights(cliente.meta_account_id, conexaoMeta.access_token, periodo_inicio, periodo_fim, "ad"),
     ]);
 
@@ -158,6 +190,7 @@ export async function POST(req: NextRequest) {
       periodo: { inicio: periodo_inicio, fim: periodo_fim },
       consolidado: conta[0] ?? null,
       campanhas,
+      conjuntos,
       anuncios,
     });
   } catch (error) {
