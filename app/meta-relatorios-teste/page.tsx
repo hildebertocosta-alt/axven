@@ -5,6 +5,9 @@ import { useState } from "react";
 type InsightRow = {
   id?: string;
   nome?: string;
+  campaign_name?: string;
+  adset_name?: string;
+  ad_name?: string;
   spend?: number;
   reach?: number;
   impressions?: number;
@@ -15,6 +18,7 @@ type InsightRow = {
   frequency?: number;
   leads?: number;
   cpl?: number | null;
+  lead_action_type?: string | null;
 };
 
 type MetaResponse = {
@@ -23,6 +27,7 @@ type MetaResponse = {
   periodo?: { inicio?: string; fim?: string };
   consolidado?: InsightRow;
   campanhas?: InsightRow[];
+  conjuntos?: InsightRow[];
   anuncios?: InsightRow[];
   error?: string;
 };
@@ -31,12 +36,12 @@ const INSTITUTO_CLIENTE_ID = "0e96745b-2f6f-4ded-890d-d909958be0af";
 
 function moeda(value?: number | null) {
   if (value == null) return "—";
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
 }
 
 function numero(value?: number | null) {
   if (value == null) return "—";
-  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(value);
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(Number(value));
 }
 
 export default function MetaRelatoriosTestePage() {
@@ -52,11 +57,7 @@ export default function MetaRelatoriosTestePage() {
       const response = await fetch("/api/relatorios/meta-insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cliente_id: INSTITUTO_CLIENTE_ID,
-          periodo_inicio: inicio,
-          periodo_fim: fim,
-        }),
+        body: JSON.stringify({ cliente_id: INSTITUTO_CLIENTE_ID, periodo_inicio: inicio, periodo_fim: fim }),
       });
       const data = (await response.json()) as MetaResponse;
       if (!response.ok) setResultado({ error: data.error || `Erro HTTP ${response.status}` });
@@ -81,23 +82,13 @@ export default function MetaRelatoriosTestePage() {
 
         <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
           <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-            <label className="text-sm text-zinc-300">Início
-              <input className="mt-2 block w-full rounded-xl border border-white/10 bg-zinc-950 px-3 py-2" type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
-            </label>
-            <label className="text-sm text-zinc-300">Fim
-              <input className="mt-2 block w-full rounded-xl border border-white/10 bg-zinc-950 px-3 py-2" type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
-            </label>
-            <button onClick={testar} disabled={loading} className="rounded-xl bg-orange-600 px-5 py-2.5 font-medium hover:bg-orange-500 disabled:opacity-50">
-              {loading ? "Consultando Meta..." : "Puxar dados da Meta"}
-            </button>
+            <label className="text-sm text-zinc-300">Início<input className="mt-2 block w-full rounded-xl border border-white/10 bg-zinc-950 px-3 py-2" type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} /></label>
+            <label className="text-sm text-zinc-300">Fim<input className="mt-2 block w-full rounded-xl border border-white/10 bg-zinc-950 px-3 py-2" type="date" value={fim} onChange={(e) => setFim(e.target.value)} /></label>
+            <button onClick={testar} disabled={loading} className="rounded-xl bg-orange-600 px-5 py-2.5 font-medium hover:bg-orange-500 disabled:opacity-50">{loading ? "Consultando Meta..." : "Puxar dados da Meta"}</button>
           </div>
         </section>
 
-        {resultado?.error && (
-          <section className="rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-red-200">
-            <strong>Erro:</strong> {resultado.error}
-          </section>
-        )}
+        {resultado?.error && <section className="rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-red-200"><strong>Erro:</strong> {resultado.error}</section>}
 
         {c && (
           <>
@@ -112,8 +103,9 @@ export default function MetaRelatoriosTestePage() {
               <Metric label="CPM" value={moeda(c.cpm)} />
             </section>
 
-            <DataTable title="Campanhas" rows={resultado?.campanhas ?? []} />
-            <DataTable title="Anúncios" rows={resultado?.anuncios ?? []} />
+            <DataTable title="Campanhas" level="campaign" rows={resultado?.campanhas ?? []} />
+            <DataTable title="Conjuntos" level="adset" rows={resultado?.conjuntos ?? []} />
+            <DataTable title="Anúncios" level="ad" rows={resultado?.anuncios ?? []} />
           </>
         )}
       </div>
@@ -122,28 +114,29 @@ export default function MetaRelatoriosTestePage() {
 }
 
 function Metric({ label, value, expected }: { label: string; value: string; expected?: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-      <div className="text-sm text-zinc-400">{label}</div>
-      <div className="mt-2 text-2xl font-semibold">{value}</div>
-      {expected && <div className="mt-2 text-xs text-zinc-500">{expected}</div>}
-    </div>
-  );
+  return <div className="rounded-2xl border border-white/10 bg-zinc-900 p-5"><div className="text-sm text-zinc-400">{label}</div><div className="mt-2 text-2xl font-semibold">{value}</div>{expected && <div className="mt-2 text-xs text-zinc-500">{expected}</div>}</div>;
 }
 
-function DataTable({ title, rows }: { title: string; rows: InsightRow[] }) {
+function DataTable({ title, level, rows }: { title: string; level: "campaign" | "adset" | "ad"; rows: InsightRow[] }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900">
       <div className="border-b border-white/10 px-5 py-4 font-medium">{title} ({rows.length})</div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-sm">
+        <table className="w-full min-w-[1100px] text-sm">
           <thead className="bg-white/5 text-zinc-400">
-            <tr><th className="px-4 py-3 text-left">Nome</th><th className="px-4 py-3 text-right">Invest.</th><th className="px-4 py-3 text-right">Leads</th><th className="px-4 py-3 text-right">CPL</th><th className="px-4 py-3 text-right">Cliques</th><th className="px-4 py-3 text-right">CTR</th><th className="px-4 py-3 text-right">CPM</th></tr>
+            <tr>
+              {level !== "campaign" && <th className="px-4 py-3 text-left">Campanha</th>}
+              {level === "ad" && <th className="px-4 py-3 text-left">Conjunto</th>}
+              <th className="px-4 py-3 text-left">{level === "campaign" ? "Campanha" : level === "adset" ? "Conjunto" : "Anúncio"}</th>
+              <th className="px-4 py-3 text-right">Invest.</th><th className="px-4 py-3 text-right">Leads</th><th className="px-4 py-3 text-right">CPL</th><th className="px-4 py-3 text-right">Cliques</th><th className="px-4 py-3 text-right">CTR</th><th className="px-4 py-3 text-right">CPM</th>
+            </tr>
           </thead>
           <tbody>
             {rows.map((row, index) => (
               <tr key={`${row.id ?? row.nome ?? "row"}-${index}`} className="border-t border-white/5">
-                <td className="px-4 py-3">{row.nome ?? row.id ?? "—"}</td>
+                {level !== "campaign" && <td className="px-4 py-3">{row.campaign_name ?? "—"}</td>}
+                {level === "ad" && <td className="px-4 py-3">{row.adset_name ?? "—"}</td>}
+                <td className="px-4 py-3 font-medium">{row.nome ?? (level === "campaign" ? row.campaign_name : level === "adset" ? row.adset_name : row.ad_name) ?? row.id ?? "—"}</td>
                 <td className="px-4 py-3 text-right">{moeda(row.spend)}</td>
                 <td className="px-4 py-3 text-right">{numero(row.leads)}</td>
                 <td className="px-4 py-3 text-right">{moeda(row.cpl)}</td>
