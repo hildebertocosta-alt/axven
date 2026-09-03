@@ -21,9 +21,9 @@ export default function PublicHomePatch() {
       const headerLogo = headerBrand.querySelector<HTMLImageElement>('img');
       const headerText = headerBrand.querySelector<HTMLDivElement>('div');
       if (headerLogo) {
-        headerLogo.src = '/AXVEN%20IDV-34.png';
+        headerLogo.src = '/pasted-1788289300144-0.png';
         headerLogo.alt = 'Axven Digital';
-        headerLogo.className = 'h-10 w-auto object-contain sm:h-11';
+        headerLogo.className = 'h-9 w-auto object-contain sm:h-10';
       }
       if (headerText) headerText.style.display = 'none';
     }
