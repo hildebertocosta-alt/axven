@@ -27,7 +27,7 @@ export default function ClinicasPage() {
           <p className="mt-4 text-sm text-[#686872]">Para clínicas com faturamento a partir de R$ 35 mil/mês.</p>
         </div>
         <div className="relative min-h-[560px] overflow-hidden rounded-[30px] border border-[#35343A] bg-[#15120F] shadow-2xl">
-          <img src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&fm=jpg&q=88&w=1800" alt="Clínica de estética premium com ambiente de atendimento" className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/clinicas/hero-clinica-premium.jpg" alt="Clínica de estética premium com recepção iluminada e sala de procedimento" className="absolute inset-0 h-full w-full object-cover object-center" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0B0B0F]/30 via-transparent to-[#0B0B0F]/25"/><div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[#0B0B0F]/80 to-transparent"/>
           <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/55 px-4 py-2 text-[11px] font-semibold uppercase tracking-[.14em] text-[#FFD0BF] backdrop-blur-md">Clínica de estética • operação premium</div>
           <div className="absolute bottom-5 right-5 top-20 z-10 flex w-[47%] flex-col justify-center gap-3">
