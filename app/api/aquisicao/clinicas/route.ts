@@ -28,6 +28,25 @@ function nullable(value: unknown, max = 500) {
   return parsed || null;
 }
 
+export async function GET() {
+  const { error } = await supabaseAdmin
+    .from("aquisicao_axven_leads")
+    .select("id", { head: true, count: "exact" })
+    .limit(1);
+
+  return NextResponse.json(
+    {
+      ok: !error,
+      version: "clinicas-v1.1",
+      database: error ? "unavailable" : "reachable",
+    },
+    {
+      status: error ? 503 : 200,
+      headers: { "Cache-Control": "no-store" },
+    }
+  );
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "payload_invalido" }, { status: 400 });
@@ -66,6 +85,8 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabaseAdmin
     .from("aquisicao_axven_leads")
     .insert({
+      vertical: "clinicas_estetica",
+      landing_page: "/clinicas",
       nome,
       clinica,
       whatsapp,
@@ -102,9 +123,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "falha_ao_salvar" }, { status: 500 });
   }
 
-  return NextResponse.json({
-    id: data.id,
-    qualified: data.qualificado,
-    stage: data.etapa,
-  });
+  return NextResponse.json(
+    {
+      id: data.id,
+      qualified: data.qualificado,
+      stage: data.etapa,
+      version: "clinicas-v1.1",
+    },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }
