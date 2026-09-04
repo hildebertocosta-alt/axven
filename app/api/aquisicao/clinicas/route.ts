@@ -2,83 +2,18 @@ import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 
-const REVENUE_LABELS: Record<string, string> = {
-  "20": "Até R$ 20 mil",
-  "34": "R$ 20 mil a R$ 35 mil",
-  "60": "R$ 35 mil a R$ 60 mil",
-  "100": "R$ 60 mil a R$ 100 mil",
-  "300": "R$ 100 mil a R$ 300 mil",
-  "301": "Acima de R$ 300 mil",
-};
+const REVENUE_LABELS: Record<string, string> = {"20":"Até R$ 20 mil","34":"R$ 20 mil a R$ 35 mil","60":"R$ 35 mil a R$ 60 mil","100":"R$ 60 mil a R$ 100 mil","300":"R$ 100 mil a R$ 300 mil","301":"Acima de R$ 300 mil"};
+const CAPACITY_LABELS: Record<string, string> = {"1":"Até R$ 1.500","2":"R$ 1.500 a R$ 2.000","3.9":"R$ 2.000 a R$ 4.000","6":"R$ 4.000 a R$ 6.000","10":"R$ 6.000 a R$ 10.000","11":"Acima de R$ 10.000"};
+function text(value: unknown,max=300){return typeof value==="string"?value.trim().slice(0,max):""}
+function nullable(value: unknown,max=500){const parsed=text(value,max);return parsed||null}
+function normalizeInstagram(value:unknown){const raw=text(value,160).replace(/^https?:\/\/(www\.)?instagram\.com\//i,"").replace(/^@+/,"").replace(/\/$/,"");return /^[A-Za-z0-9._]{1,30}$/.test(raw)?`@${raw}`:""}
 
-const CAPACITY_LABELS: Record<string, string> = {
-  "1": "Até R$ 1.500",
-  "2": "R$ 1.500 a R$ 2.000",
-  "3.9": "R$ 2.000 a R$ 4.000",
-  "6": "R$ 4.000 a R$ 6.000",
-  "10": "R$ 6.000 a R$ 10.000",
-  "11": "Acima de R$ 10.000",
-};
+export async function GET(){const{error}=await supabaseAdmin.from("aquisicao_axven_leads").select("id",{head:true,count:"exact"}).limit(1);return NextResponse.json({ok:!error,version:"clinicas-v1.3",database:error?"unavailable":"reachable"},{status:error?503:200,headers:{"Cache-Control":"no-store"}})}
 
-function text(value: unknown, max = 300) {
-  return typeof value === "string" ? value.trim().slice(0, max) : "";
-}
-
-function nullable(value: unknown, max = 500) {
-  const parsed = text(value, max);
-  return parsed || null;
-}
-
-export async function GET() {
-  const { error } = await supabaseAdmin.from("aquisicao_axven_leads").select("id", { head: true, count: "exact" }).limit(1);
-  return NextResponse.json({ ok: !error, version: "clinicas-v1.2", database: error ? "unavailable" : "reachable" }, { status: error ? 503 : 200, headers: { "Cache-Control": "no-store" } });
-}
-
-export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "payload_invalido" }, { status: 400 });
-
-  const nome = text(body.name, 120);
-  const clinica = text(body.clinic, 160);
-  const whatsapp = text(body.whatsapp, 40).replace(/[^0-9+]/g, "");
-  const revenueKey = text(body.revenue, 10);
-  const capacityKey = text(body.capacity, 10);
-  const ads = text(body.ads, 100);
-  const sales = text(body.sales, 140);
-  const challenge = text(body.challenge, 160);
-  const timing = text(body.timing, 100);
-  const faturamentoMinMil = Number(revenueKey);
-  const capacidadeMinMil = Number(capacityKey);
-
-  if (!nome || !clinica || !whatsapp || !REVENUE_LABELS[revenueKey] || !CAPACITY_LABELS[capacityKey] || !ads || !sales || !challenge || !timing || !Number.isFinite(faturamentoMinMil) || !Number.isFinite(capacidadeMinMil)) {
-    return NextResponse.json({ error: "campos_obrigatorios" }, { status: 400 });
-  }
-
-  const capacidadeValida = capacityKey !== "1";
-  const qualificado = faturamentoMinMil >= 35 && capacidadeValida;
-  const motivos: string[] = [];
-  if (faturamentoMinMil < 35) motivos.push("faturamento_abaixo_35k");
-  if (!capacidadeValida) motivos.push("capacidade_investimento_ate_1_5k");
-
-  const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
-  const ipHash = forwardedFor ? createHash("sha256").update(forwardedFor).digest("hex") : null;
-
-  const { data, error } = await supabaseAdmin.from("aquisicao_axven_leads").insert({
-    vertical: "clinicas_estetica", landing_page: "/clinicas", nome, clinica, whatsapp,
-    instagram: nullable(body.instagram, 160), faturamento_faixa: REVENUE_LABELS[revenueKey], faturamento_min_mil: faturamentoMinMil,
-    investimento_ads_faixa: ads, atendimento_leads: sales, desafio_principal: challenge,
-    capacidade_investimento_faixa: CAPACITY_LABELS[capacityKey], capacidade_min_mil: capacidadeMinMil,
-    inicio_pretendido: timing, qualificado, motivo_desqualificacao: motivos.length ? motivos.join(",") : null,
-    etapa: qualificado ? "qualificado" : "desqualificado", utm_source: nullable(body.utm_source, 180), utm_medium: nullable(body.utm_medium, 180),
-    utm_campaign: nullable(body.utm_campaign, 250), utm_content: nullable(body.utm_content, 250), utm_term: nullable(body.utm_term, 250),
-    fbclid: nullable(body.fbclid, 500), campaign_id: nullable(body.campaign_id, 120), adset_id: nullable(body.adset_id, 120), ad_id: nullable(body.ad_id, 120),
-    origem_url: nullable(body.origin_url, 700), user_agent: nullable(req.headers.get("user-agent"), 700), ip_hash: ipHash,
-  }).select("id, qualificado, etapa").single();
-
-  if (error) {
-    console.error("[aquisicao-clinicas] insert error", error.message);
-    return NextResponse.json({ error: "falha_ao_salvar" }, { status: 500 });
-  }
-
-  return NextResponse.json({ id: data.id, qualified: data.qualificado, stage: data.etapa, version: "clinicas-v1.2" }, { headers: { "Cache-Control": "no-store" } });
-}
+export async function POST(req:NextRequest){const body=await req.json().catch(()=>null);if(!body)return NextResponse.json({error:"payload_invalido"},{status:400});
+const nome=text(body.name,120),clinica=text(body.clinic,160),whatsappDigits=text(body.whatsapp,40).replace(/\D/g,""),instagram=normalizeInstagram(body.instagram),revenueKey=text(body.revenue,10),capacityKey=text(body.capacity,10),ads=text(body.ads,100),sales=text(body.sales,140),challenge=text(body.challenge,160),timing=text(body.timing,100);const faturamentoMinMil=Number(revenueKey),capacidadeMinMil=Number(capacityKey);
+if(!nome||!clinica||whatsappDigits.length!==11||!instagram||!REVENUE_LABELS[revenueKey]||!CAPACITY_LABELS[capacityKey]||!ads||!sales||!challenge||!timing||!Number.isFinite(faturamentoMinMil)||!Number.isFinite(capacidadeMinMil))return NextResponse.json({error:"campos_obrigatorios_ou_invalidos"},{status:400});
+const whatsapp=`55${whatsappDigits}`,capacidadeValida=capacityKey!=="1",qualificado=faturamentoMinMil>=35&&capacidadeValida,motivos:string[]=[];if(faturamentoMinMil<35)motivos.push("faturamento_abaixo_35k");if(!capacidadeValida)motivos.push("capacidade_investimento_ate_1_5k");
+const forwardedFor=req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()||"",ipHash=forwardedFor?createHash("sha256").update(forwardedFor).digest("hex"):null;
+const{data,error}=await supabaseAdmin.from("aquisicao_axven_leads").insert({vertical:"clinicas_estetica",landing_page:"/clinicas",nome,clinica,whatsapp,instagram,faturamento_faixa:REVENUE_LABELS[revenueKey],faturamento_min_mil:faturamentoMinMil,investimento_ads_faixa:ads,atendimento_leads:sales,desafio_principal:challenge,capacidade_investimento_faixa:CAPACITY_LABELS[capacityKey],capacidade_min_mil:capacidadeMinMil,inicio_pretendido:timing,qualificado,motivo_desqualificacao:motivos.length?motivos.join(","):null,etapa:qualificado?"qualificado":"desqualificado",utm_source:nullable(body.utm_source,180),utm_medium:nullable(body.utm_medium,180),utm_campaign:nullable(body.utm_campaign,250),utm_content:nullable(body.utm_content,250),utm_term:nullable(body.utm_term,250),fbclid:nullable(body.fbclid,500),campaign_id:nullable(body.campaign_id,120),adset_id:nullable(body.adset_id,120),ad_id:nullable(body.ad_id,120),origem_url:nullable(body.origin_url,700),user_agent:nullable(req.headers.get("user-agent"),700),ip_hash:ipHash}).select("id, qualificado, etapa").single();
+if(error){console.error("[aquisicao-clinicas] insert error",error.message);return NextResponse.json({error:"falha_ao_salvar"},{status:500})}return NextResponse.json({id:data.id,qualified:data.qualificado,stage:data.etapa,version:"clinicas-v1.3"},{headers:{"Cache-Control":"no-store"}})}
