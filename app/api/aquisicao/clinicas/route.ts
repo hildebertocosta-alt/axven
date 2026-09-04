@@ -12,7 +12,8 @@ const REVENUE_LABELS: Record<string, string> = {
 };
 
 const CAPACITY_LABELS: Record<string, string> = {
-  "2": "Até R$ 2.000",
+  "1": "Até R$ 1.500",
+  "2": "R$ 1.500 a R$ 2.000",
   "3.9": "R$ 2.000 a R$ 4.000",
   "6": "R$ 4.000 a R$ 6.000",
   "10": "R$ 6.000 a R$ 10.000",
@@ -29,22 +30,8 @@ function nullable(value: unknown, max = 500) {
 }
 
 export async function GET() {
-  const { error } = await supabaseAdmin
-    .from("aquisicao_axven_leads")
-    .select("id", { head: true, count: "exact" })
-    .limit(1);
-
-  return NextResponse.json(
-    {
-      ok: !error,
-      version: "clinicas-v1.1",
-      database: error ? "unavailable" : "reachable",
-    },
-    {
-      status: error ? 503 : 200,
-      headers: { "Cache-Control": "no-store" },
-    }
-  );
+  const { error } = await supabaseAdmin.from("aquisicao_axven_leads").select("id", { head: true, count: "exact" }).limit(1);
+  return NextResponse.json({ ok: !error, version: "clinicas-v1.2", database: error ? "unavailable" : "reachable" }, { status: error ? 503 : 200, headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: NextRequest) {
@@ -60,76 +47,38 @@ export async function POST(req: NextRequest) {
   const sales = text(body.sales, 140);
   const challenge = text(body.challenge, 160);
   const timing = text(body.timing, 100);
-
   const faturamentoMinMil = Number(revenueKey);
   const capacidadeMinMil = Number(capacityKey);
 
-  if (
-    !nome || !clinica || !whatsapp || !REVENUE_LABELS[revenueKey] ||
-    !CAPACITY_LABELS[capacityKey] || !ads || !sales || !challenge || !timing ||
-    !Number.isFinite(faturamentoMinMil) || !Number.isFinite(capacidadeMinMil)
-  ) {
+  if (!nome || !clinica || !whatsapp || !REVENUE_LABELS[revenueKey] || !CAPACITY_LABELS[capacityKey] || !ads || !sales || !challenge || !timing || !Number.isFinite(faturamentoMinMil) || !Number.isFinite(capacidadeMinMil)) {
     return NextResponse.json({ error: "campos_obrigatorios" }, { status: 400 });
   }
 
-  const qualificado = faturamentoMinMil >= 35 && capacidadeMinMil >= 4;
+  const capacidadeValida = capacityKey !== "1";
+  const qualificado = faturamentoMinMil >= 35 && capacidadeValida;
   const motivos: string[] = [];
   if (faturamentoMinMil < 35) motivos.push("faturamento_abaixo_35k");
-  if (capacidadeMinMil < 4) motivos.push("capacidade_investimento_abaixo_4k");
+  if (!capacidadeValida) motivos.push("capacidade_investimento_ate_1_5k");
 
   const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
-  const ipHash = forwardedFor
-    ? createHash("sha256").update(forwardedFor).digest("hex")
-    : null;
+  const ipHash = forwardedFor ? createHash("sha256").update(forwardedFor).digest("hex") : null;
 
-  const { data, error } = await supabaseAdmin
-    .from("aquisicao_axven_leads")
-    .insert({
-      vertical: "clinicas_estetica",
-      landing_page: "/clinicas",
-      nome,
-      clinica,
-      whatsapp,
-      instagram: nullable(body.instagram, 160),
-      faturamento_faixa: REVENUE_LABELS[revenueKey],
-      faturamento_min_mil: faturamentoMinMil,
-      investimento_ads_faixa: ads,
-      atendimento_leads: sales,
-      desafio_principal: challenge,
-      capacidade_investimento_faixa: CAPACITY_LABELS[capacityKey],
-      capacidade_min_mil: capacidadeMinMil,
-      inicio_pretendido: timing,
-      qualificado,
-      motivo_desqualificacao: motivos.length ? motivos.join(",") : null,
-      etapa: qualificado ? "qualificado" : "desqualificado",
-      utm_source: nullable(body.utm_source, 180),
-      utm_medium: nullable(body.utm_medium, 180),
-      utm_campaign: nullable(body.utm_campaign, 250),
-      utm_content: nullable(body.utm_content, 250),
-      utm_term: nullable(body.utm_term, 250),
-      fbclid: nullable(body.fbclid, 500),
-      campaign_id: nullable(body.campaign_id, 120),
-      adset_id: nullable(body.adset_id, 120),
-      ad_id: nullable(body.ad_id, 120),
-      origem_url: nullable(body.origin_url, 700),
-      user_agent: nullable(req.headers.get("user-agent"), 700),
-      ip_hash: ipHash,
-    })
-    .select("id, qualificado, etapa")
-    .single();
+  const { data, error } = await supabaseAdmin.from("aquisicao_axven_leads").insert({
+    vertical: "clinicas_estetica", landing_page: "/clinicas", nome, clinica, whatsapp,
+    instagram: nullable(body.instagram, 160), faturamento_faixa: REVENUE_LABELS[revenueKey], faturamento_min_mil: faturamentoMinMil,
+    investimento_ads_faixa: ads, atendimento_leads: sales, desafio_principal: challenge,
+    capacidade_investimento_faixa: CAPACITY_LABELS[capacityKey], capacidade_min_mil: capacidadeMinMil,
+    inicio_pretendido: timing, qualificado, motivo_desqualificacao: motivos.length ? motivos.join(",") : null,
+    etapa: qualificado ? "qualificado" : "desqualificado", utm_source: nullable(body.utm_source, 180), utm_medium: nullable(body.utm_medium, 180),
+    utm_campaign: nullable(body.utm_campaign, 250), utm_content: nullable(body.utm_content, 250), utm_term: nullable(body.utm_term, 250),
+    fbclid: nullable(body.fbclid, 500), campaign_id: nullable(body.campaign_id, 120), adset_id: nullable(body.adset_id, 120), ad_id: nullable(body.ad_id, 120),
+    origem_url: nullable(body.origin_url, 700), user_agent: nullable(req.headers.get("user-agent"), 700), ip_hash: ipHash,
+  }).select("id, qualificado, etapa").single();
 
   if (error) {
     console.error("[aquisicao-clinicas] insert error", error.message);
     return NextResponse.json({ error: "falha_ao_salvar" }, { status: 500 });
   }
 
-  return NextResponse.json(
-    {
-      id: data.id,
-      qualified: data.qualificado,
-      stage: data.etapa,
-      version: "clinicas-v1.1",
-    },
-    { headers: { "Cache-Control": "no-store" } }
-  );
+  return NextResponse.json({ id: data.id, qualified: data.qualificado, stage: data.etapa, version: "clinicas-v1.2" }, { headers: { "Cache-Control": "no-store" } });
 }
