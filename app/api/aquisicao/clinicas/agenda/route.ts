@@ -58,6 +58,18 @@ export async function POST(req: NextRequest) {
     if (error.code === "23505") return NextResponse.json({ error: "horario_indisponivel" }, { status: 409 });
     return NextResponse.json({ error: "falha_agendamento" }, { status: 500 });
   }
+
   await supabaseAdmin.from("aquisicao_axven_leads").update({ etapa: "agendado", agendado_em: inicio.toISOString(), atualizado_em: new Date().toISOString() }).eq("id", leadId);
-  return NextResponse.json({ ok: true, booking: data }, { headers: { "Cache-Control": "no-store" } });
+
+  const { error: outboxError } = await supabaseAdmin.from("aquisicao_axven_whatsapp_outbox").insert({
+    agendamento_id: data.id,
+    lead_id: leadId,
+    tipo: "confirmacao_agendamento",
+    status: "pendente",
+    disponivel_em: new Date().toISOString(),
+  });
+
+  if (outboxError) console.error("[aquisicao-clinicas] whatsapp outbox error", outboxError.message);
+
+  return NextResponse.json({ ok: true, booking: data, whatsappConfirmationQueued: !outboxError }, { headers: { "Cache-Control": "no-store" } });
 }
