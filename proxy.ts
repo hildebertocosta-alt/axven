@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME, verifySessionToken } from "@/app/lib/authSession";
 
-const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/webhooks/"];
+const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/webhooks/", "/api/aquisicao/"];
 
 function isPublicPath(pathname: string) {
   if (pathname === "/") return true;
