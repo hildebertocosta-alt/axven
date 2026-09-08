@@ -13,6 +13,8 @@ const ETAPAS_VALIDAS = [
   "desqualificado",
 ] as const;
 
+const MOEDAS_VALIDAS = ["BRL", "USD", "EUR"] as const;
+
 export async function PATCH(req: NextRequest) {
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
@@ -31,19 +33,40 @@ export async function PATCH(req: NextRequest) {
 
   const { data: atual } = await supabaseAdmin
     .from("aquisicao_axven_leads")
-    .select("id, valor_venda")
+    .select("id, valor_venda, moeda, venda_em")
     .eq("id", id)
     .maybeSingle();
 
   if (!atual) return NextResponse.json({ error: "lead não encontrado" }, { status: 404 });
-  if (etapa === "fechado" && atual.valor_venda == null) {
-    return NextResponse.json({ error: "valor da venda é obrigatório para fechar" }, { status: 409 });
-  }
 
   const atualizadoEm = new Date().toISOString();
   const payload: Record<string, unknown> = { etapa, atualizado_em: atualizadoEm };
-  if (etapa === "fechado") payload.venda_em = atualizadoEm;
-  if (etapa !== "fechado") payload.venda_em = null;
+
+  if (etapa === "fechado") {
+    const valorInformado = Number(body?.valor_venda);
+    const valorVenda = Number.isFinite(valorInformado) && valorInformado > 0
+      ? Math.round(valorInformado * 100) / 100
+      : atual.valor_venda;
+
+    const moeda = typeof body?.moeda === "string" && MOEDAS_VALIDAS.includes(body.moeda as (typeof MOEDAS_VALIDAS)[number])
+      ? body.moeda
+      : atual.moeda || "BRL";
+
+    const vendaEmInformada = typeof body?.venda_em === "string" ? new Date(body.venda_em) : null;
+    const vendaEm = vendaEmInformada && !Number.isNaN(vendaEmInformada.getTime())
+      ? vendaEmInformada.toISOString()
+      : atual.venda_em || atualizadoEm;
+
+    if (valorVenda == null || Number(valorVenda) <= 0) {
+      return NextResponse.json({ error: "valor da venda é obrigatório para fechar" }, { status: 409 });
+    }
+
+    payload.valor_venda = valorVenda;
+    payload.moeda = moeda;
+    payload.venda_em = vendaEm;
+  } else if (atual.venda_em && etapa !== "fechado") {
+    payload.venda_em = null;
+  }
 
   const { data, error } = await supabaseAdmin
     .from("aquisicao_axven_leads")
