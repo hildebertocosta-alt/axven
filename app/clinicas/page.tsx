@@ -1,6 +1,9 @@
 "use client";
 
+import Script from "next/script";
 import LeadForm from "./LeadForm";
+
+const META_PIXEL_ID = "3457772717706355";
 
 const steps = [
   ["01", "Atração", "Estratégia, campanhas e criativos para gerar novas oportunidades para sua clínica."],
@@ -13,7 +16,18 @@ const steps = [
 const fit = ["Fatura a partir de R$ 35 mil por mês","Já possui procedimentos e ofertas validados","Já vende e possui uma operação em funcionamento","Possui alguém responsável pelo atendimento dos leads","Tem capacidade para receber novos pacientes","Está disposta a acompanhar agendamentos e vendas"];
 
 export default function ClinicasPage() {
-  return <main className="min-h-screen bg-[#0B0B0F] text-[#F5F5F7]">
+  return <>
+    <Script id="meta-pixel-axven" strategy="afterInteractive">{`
+      !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+      n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '${META_PIXEL_ID}');
+      fbq('track', 'PageView');
+    `}</Script>
+    <noscript><img height="1" width="1" style={{display:"none"}} src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`} alt="" /></noscript>
+    <main className="min-h-screen bg-[#0B0B0F] text-[#F5F5F7]">
     <section className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-24">
       <div className="grid items-center gap-10 lg:grid-cols-[.88fr_1.12fr]">
         <div className="relative z-20">
@@ -41,5 +55,6 @@ export default function ClinicasPage() {
     <section className="mx-auto max-w-6xl px-6 py-24"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#FF6B35]">O que construímos</p><h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">Uma operação conectada, não apenas campanhas.</h2><div className="mt-10 grid gap-4 md:grid-cols-2">{[["Estratégia de aquisição","Campanhas, ofertas e jornadas para geração de demanda."],["Gestão de mídia","Estruturação, operação e otimização das campanhas."],["Criativos de performance","Estratégia, copy, roteiros, design e adaptação dos materiais usados nas campanhas."],["CRM e processo comercial","Organização da jornada entre lead, qualificação, agendamento e venda."],["Tracking e dados","Estrutura para conectar origem, oportunidade e resultado comercial."],["Automações essenciais","Automatizações necessárias dentro do processo padronizado da Axven."]].map(([t,d])=><div key={t} className="rounded-2xl border border-[#2A2A32] bg-[#111117] p-6"><h3 className="text-xl font-semibold">{t}</h3><p className="mt-3 leading-7 text-[#9B9BA4]">{d}</p></div>)}</div></section>
     <section id="analise" className="border-t border-[#2A2A32] bg-[#111117]"><div className="mx-auto max-w-3xl px-6 py-24"><p className="text-center text-sm font-semibold uppercase tracking-[0.18em] text-[#FF6B35]">Análise de Crescimento Axven</p><h2 className="mt-4 text-center text-3xl font-semibold tracking-tight md:text-5xl">Sua clínica tem perfil para avançar?</h2><p className="mx-auto mt-5 max-w-2xl text-center leading-8 text-[#9B9BA4]">Responda algumas perguntas rápidas. Se houver alinhamento com a estrutura atual da Axven, você poderá avançar para o agendamento da análise.</p><LeadForm /></div></section>
     <style jsx global>{`.input{width:100%;border:1px solid #2A2A32;background:#17171D;color:#F5F5F7;border-radius:12px;padding:14px 16px;outline:none}.input:focus{border-color:#FF5A3C}`}</style>
-  </main>;
+  </main>
+  </>;
 }
