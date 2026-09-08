@@ -15,14 +15,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-export type Etapa =
-  | "lead"
-  | "qualificado"
-  | "agendado"
-  | "proposta_enviada"
-  | "fechado"
-  | "nao_fechou"
-  | "desqualificado";
+export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado" | "nao_fechou" | "desqualificado";
 
 export type LeadRow = {
   id: string;
@@ -68,12 +61,7 @@ const badgeClasses: Record<Etapa, string> = {
 
 function formatData(value?: string | null) {
   if (!value) return null;
-  return new Date(value).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return new Date(value).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
 function formatCurrency(value?: number | null, moeda = "BRL") {
@@ -86,32 +74,22 @@ function LeadCard({ lead, dragging = false }: { lead: LeadRow; dragging?: boolea
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`cursor-grab rounded-2xl border border-white/10 bg-zinc-900/80 p-4 text-sm shadow-sm transition active:cursor-grabbing ${dragging ? "rotate-2 shadow-lg shadow-black/40" : ""}`}
-    >
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className={`cursor-grab rounded-2xl border border-white/10 bg-zinc-900/80 p-4 text-sm shadow-sm transition active:cursor-grabbing ${dragging ? "rotate-2 shadow-lg shadow-black/40" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-medium text-white">{lead.nome ?? "Sem nome"}</p>
           {lead.nicho ? <p className="mt-1 text-xs text-zinc-400">{lead.nicho}</p> : null}
         </div>
-        {lead.qualificado ? (
-          <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] text-sky-200">Qualificado</span>
-        ) : null}
+        {lead.qualificado ? <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] text-sky-200">Qualificado</span> : null}
       </div>
-
       <p className="mt-2 text-xs text-zinc-400">{lead.telefone}</p>
-
       <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-zinc-400">
         {lead.como_chegou ? <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{lead.como_chegou}</span> : null}
         {lead.campanha ? <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{lead.campanha}</span> : null}
       </div>
-
       {lead.agendado_em ? <p className="mt-3 text-[11px] text-violet-200">📅 {formatData(lead.agendado_em)}</p> : null}
       {lead.valor_venda != null ? <p className="mt-2 text-xs font-medium text-emerald-200">💰 {formatCurrency(lead.valor_venda, lead.moeda ?? "BRL")}</p> : null}
+      {lead.venda_em ? <p className="mt-1 text-[10px] text-emerald-300/70">Venda em {formatData(lead.venda_em)}</p> : null}
       <p className="mt-3 text-[10px] text-zinc-600">Atualizado {formatData(lead.atualizado_em)}</p>
     </div>
   );
@@ -135,9 +113,69 @@ function KanbanColumn({ column, leads }: { column: Column; leads: LeadRow[] }) {
   );
 }
 
+function ClosingModal({ lead, onCancel, onSaved }: { lead: LeadRow; onCancel: () => void; onSaved: (lead: LeadRow) => void }) {
+  const [valor, setValor] = useState(lead.valor_venda ? String(lead.valor_venda) : "");
+  const [moeda, setMoeda] = useState(lead.moeda || "BRL");
+  const [data, setData] = useState(() => new Date().toISOString().slice(0, 10));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    const parsed = Number(valor.replace(",", "."));
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setError("Informe um valor de venda válido.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const response = await fetch("/api/crm/axven/leads/atualizar-etapa", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: lead.id, etapa: "fechado", valor_venda: parsed, moeda, venda_em: `${data}T12:00:00-03:00` }),
+    });
+    const payload = await response.json().catch(() => null);
+    setSaving(false);
+    if (!response.ok) {
+      setError(payload?.error ?? "Não foi possível registrar o fechamento.");
+      return;
+    }
+    onSaved({ ...lead, ...payload.lead, etapa: "fechado" });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4">
+      <form onSubmit={submit} className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-emerald-300">Registrar venda</p>
+            <h3 className="mt-2 text-xl font-semibold text-white">{lead.nome ?? "Lead"}</h3>
+          </div>
+          <button type="button" onClick={onCancel} className="text-sm text-zinc-400 hover:text-white">Cancelar</button>
+        </div>
+        <label className="mt-6 block text-xs text-zinc-400">Valor da venda</label>
+        <input autoFocus inputMode="decimal" value={valor} onChange={(event) => setValor(event.target.value)} placeholder="2500,00" className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-500/50" />
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-zinc-400">Moeda</label>
+            <select value={moeda} onChange={(event) => setMoeda(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-3 py-3 text-white"><option value="BRL">BRL</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400">Data da venda</label>
+            <input type="date" value={data} onChange={(event) => setData(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-3 py-3 text-white" />
+          </div>
+        </div>
+        {error ? <p className="mt-4 text-sm text-rose-300">{error}</p> : null}
+        <button disabled={saving} className="mt-6 w-full rounded-xl bg-emerald-500 px-4 py-3 font-medium text-black transition hover:bg-emerald-400 disabled:opacity-50">{saving ? "Salvando..." : "Confirmar fechamento"}</button>
+      </form>
+    </div>
+  );
+}
+
 export function LeadsBoard({ initialLeads }: { initialLeads: LeadRow[] }) {
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
   const [activeLead, setActiveLead] = useState<LeadRow | null>(null);
+  const [closingLead, setClosingLead] = useState<LeadRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -145,58 +183,45 @@ export function LeadsBoard({ initialLeads }: { initialLeads: LeadRow[] }) {
     setActiveLead(leads.find((item) => item.id === event.active.id) ?? null);
   }
 
+  async function updateStage(lead: LeadRow, etapa: Etapa) {
+    const previous = lead.etapa;
+    setError(null);
+    setLeads((current) => current.map((item) => item.id === lead.id ? { ...item, etapa } : item));
+    const response = await fetch("/api/crm/axven/leads/atualizar-etapa", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: lead.id, etapa }) });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      setLeads((current) => current.map((item) => item.id === lead.id ? { ...item, etapa: previous } : item));
+      setError(payload?.error ?? "Não foi possível atualizar a etapa do lead.");
+    }
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveLead(null);
     if (!over) return;
-
     const draggedLead = leads.find((item) => item.id === active.id);
     if (!draggedLead) return;
-
-    const targetColumn = COLUMNS.find((column) => column.key === over.id)?.key
-      ?? leads.find((item) => item.id === over.id)?.etapa;
+    const targetColumn = COLUMNS.find((column) => column.key === over.id)?.key ?? leads.find((item) => item.id === over.id)?.etapa;
     if (!targetColumn || targetColumn === draggedLead.etapa) return;
-
-    if (targetColumn === "fechado" && draggedLead.valor_venda == null) {
-      setError("Para fechar uma venda, informe o valor da venda. O formulário de fechamento será habilitado na próxima etapa do CRM V1.");
+    if (targetColumn === "fechado") {
+      setClosingLead(draggedLead);
       return;
     }
-
-    const previous = draggedLead.etapa;
-    setError(null);
-    setLeads((current) => current.map((lead) => lead.id === draggedLead.id ? { ...lead, etapa: targetColumn } : lead));
-
-    const response = await fetch("/api/crm/axven/leads/atualizar-etapa", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: draggedLead.id, etapa: targetColumn }),
-    });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      setLeads((current) => current.map((lead) => lead.id === draggedLead.id ? { ...lead, etapa: previous } : lead));
-      setError(payload?.error ?? "Não foi possível atualizar a etapa do lead.");
-    }
+    await updateStage(draggedLead, targetColumn);
   }
 
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-zinc-400">Leads reais da aquisição Axven, sem duplicação no CRM de clientes.</p>
-          <p className="mt-1 text-xs text-zinc-600">Arraste o lead entre as etapas para atualizar o funil.</p>
-        </div>
+        <div><p className="text-sm text-zinc-400">Leads reais da aquisição Axven, sem duplicação no CRM de clientes.</p><p className="mt-1 text-xs text-zinc-600">Arraste o lead entre as etapas. Ao mover para Fechado, informe valor, data e moeda.</p></div>
         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300">{leads.length} leads</span>
       </div>
-
       {error ? <div className="mb-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</div> : null}
-
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-5">
-          {COLUMNS.map((column) => <KanbanColumn key={column.key} column={column} leads={leads.filter((lead) => lead.etapa === column.key)} />)}
-        </div>
+        <div className="flex gap-4 overflow-x-auto pb-5">{COLUMNS.map((column) => <KanbanColumn key={column.key} column={column} leads={leads.filter((lead) => lead.etapa === column.key)} />)}</div>
         <DragOverlay>{activeLead ? <div className="w-[280px]"><LeadCard lead={activeLead} dragging /></div> : null}</DragOverlay>
       </DndContext>
+      {closingLead ? <ClosingModal lead={closingLead} onCancel={() => setClosingLead(null)} onSaved={(saved) => { setLeads((current) => current.map((item) => item.id === saved.id ? saved : item)); setClosingLead(null); setError(null); }} /> : null}
     </div>
   );
 }
