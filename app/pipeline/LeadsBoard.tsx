@@ -69,7 +69,7 @@ function formatCurrency(value?: number | null, moeda = "BRL") {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: moeda || "BRL" }).format(value);
 }
 
-function LeadCard({ lead, dragging = false }: { lead: LeadRow; dragging?: boolean }) {
+function LeadCard({ lead, dragging = false, onMove }: { lead: LeadRow; dragging?: boolean; onMove?: (lead: LeadRow, etapa: Etapa) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
 
@@ -91,11 +91,27 @@ function LeadCard({ lead, dragging = false }: { lead: LeadRow; dragging?: boolea
       {lead.valor_venda != null ? <p className="mt-2 text-xs font-medium text-emerald-200">💰 {formatCurrency(lead.valor_venda, lead.moeda ?? "BRL")}</p> : null}
       {lead.venda_em ? <p className="mt-1 text-[10px] text-emerald-300/70">Venda em {formatData(lead.venda_em)}</p> : null}
       <p className="mt-3 text-[10px] text-zinc-600">Atualizado {formatData(lead.atualizado_em)}</p>
+
+      {onMove ? (
+        <select
+          value={lead.etapa}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+          onChange={(event) => {
+            event.stopPropagation();
+            const etapa = event.target.value as Etapa;
+            if (etapa !== lead.etapa) onMove(lead, etapa);
+          }}
+          className="mt-4 w-full cursor-pointer rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 outline-none focus:border-[#D85A30]/60"
+        >
+          {COLUMNS.map((column) => <option key={column.key} value={column.key}>{column.label}</option>)}
+        </select>
+      ) : null}
     </div>
   );
 }
 
-function KanbanColumn({ column, leads }: { column: Column; leads: LeadRow[] }) {
+function KanbanColumn({ column, leads, onMove }: { column: Column; leads: LeadRow[]; onMove: (lead: LeadRow, etapa: Etapa) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.key });
   return (
     <div className="flex min-w-[280px] flex-1 flex-col">
@@ -105,7 +121,7 @@ function KanbanColumn({ column, leads }: { column: Column; leads: LeadRow[] }) {
       </div>
       <div ref={setNodeRef} className={`flex min-h-[220px] flex-1 flex-col gap-3 rounded-3xl border p-3 transition ${column.accent} ${isOver ? "ring-2 ring-[#D85A30]/40" : ""}`}>
         <SortableContext items={leads.map((lead) => lead.id)} strategy={verticalListSortingStrategy}>
-          {leads.map((lead) => <LeadCard key={lead.id} lead={lead} />)}
+          {leads.map((lead) => <LeadCard key={lead.id} lead={lead} onMove={onMove} />)}
         </SortableContext>
         {leads.length === 0 ? <p className="px-1 py-6 text-center text-xs text-zinc-500">Nenhum lead nesta etapa</p> : null}
       </div>
@@ -195,6 +211,15 @@ export function LeadsBoard({ initialLeads }: { initialLeads: LeadRow[] }) {
     }
   }
 
+  async function requestStageChange(lead: LeadRow, etapa: Etapa) {
+    if (etapa === lead.etapa) return;
+    if (etapa === "fechado") {
+      setClosingLead(lead);
+      return;
+    }
+    await updateStage(lead, etapa);
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveLead(null);
@@ -202,23 +227,19 @@ export function LeadsBoard({ initialLeads }: { initialLeads: LeadRow[] }) {
     const draggedLead = leads.find((item) => item.id === active.id);
     if (!draggedLead) return;
     const targetColumn = COLUMNS.find((column) => column.key === over.id)?.key ?? leads.find((item) => item.id === over.id)?.etapa;
-    if (!targetColumn || targetColumn === draggedLead.etapa) return;
-    if (targetColumn === "fechado") {
-      setClosingLead(draggedLead);
-      return;
-    }
-    await updateStage(draggedLead, targetColumn);
+    if (!targetColumn) return;
+    await requestStageChange(draggedLead, targetColumn);
   }
 
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div><p className="text-sm text-zinc-400">Leads reais da aquisição Axven, sem duplicação no CRM de clientes.</p><p className="mt-1 text-xs text-zinc-600">Arraste o lead entre as etapas. Ao mover para Fechado, informe valor, data e moeda.</p></div>
+        <div><p className="text-sm text-zinc-400">Leads reais da aquisição Axven, sem duplicação no CRM de clientes.</p><p className="mt-1 text-xs text-zinc-600">Use “Mover para...” no card ou arraste entre as etapas. Em Fechado, informe valor, data e moeda.</p></div>
         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300">{leads.length} leads</span>
       </div>
       {error ? <div className="mb-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</div> : null}
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-5">{COLUMNS.map((column) => <KanbanColumn key={column.key} column={column} leads={leads.filter((lead) => lead.etapa === column.key)} />)}</div>
+        <div className="flex gap-4 overflow-x-auto pb-5">{COLUMNS.map((column) => <KanbanColumn key={column.key} column={column} leads={leads.filter((lead) => lead.etapa === column.key)} onMove={requestStageChange} />)}</div>
         <DragOverlay>{activeLead ? <div className="w-[280px]"><LeadCard lead={activeLead} dragging /></div> : null}</DragOverlay>
       </DndContext>
       {closingLead ? <ClosingModal lead={closingLead} onCancel={() => setClosingLead(null)} onSaved={(saved) => { setLeads((current) => current.map((item) => item.id === saved.id ? saved : item)); setClosingLead(null); setError(null); }} /> : null}
