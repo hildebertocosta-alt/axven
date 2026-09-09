@@ -184,7 +184,16 @@ function KanbanColumn({
 
 const N8N_WEBHOOK_URL = "https://n8n.hildeberto.digital/webhook/crm-lead-etapa1";
 
-export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string; initialLeads: LeadRow[] }) {
+type AccessMode = "internal" | "portal";
+
+type KanbanBoardProps = {
+  clienteNome: string;
+  initialLeads: LeadRow[];
+  accessMode?: AccessMode;
+  clienteId?: string;
+};
+
+export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", clienteId }: KanbanBoardProps) {
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
   const [activeLead, setActiveLead] = useState<LeadRow | null>(null);
   const [pendingClosure, setPendingClosure] = useState<PendingClosure | null>(null);
@@ -244,17 +253,18 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
       prev.map((item) => (item.id === draggedLead.id ? { ...item, etapa: targetColumn, atualizado_em: updatedAt } : item)),
     );
 
-    const { error } = await supabase
-      .from("leads")
-      .update({ etapa: targetColumn, atualizado_em: updatedAt })
-      .eq("id", draggedLead.id);
+    const error = accessMode === "internal"
+      ? await updateInternalLead(draggedLead.id, { etapa: targetColumn })
+      : (await supabase.from("leads").update({ etapa: targetColumn, atualizado_em: updatedAt }).eq("id", draggedLead.id)).error;
 
     if (error) {
       setLeads(previousLeads);
       return;
     }
 
-    notifyStageChange(draggedLead, draggedLead.etapa, targetColumn);
+    if (accessMode === "portal") {
+      notifyStageChange(draggedLead, draggedLead.etapa, targetColumn);
+    }
   }
 
   async function confirmClosure() {
@@ -274,17 +284,19 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
     setClosureError(null);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      if (!accessToken) throw new Error("Sessão expirada. Entre novamente no CRM.");
-
-      const response = await fetch(`/api/crm/leads/${pendingClosure.lead.id}/fechar`, {
-        method: "POST",
+      const accessToken = accessMode === "portal" ? (await supabase.auth.getSession()).data.session?.access_token : null;
+      if (accessMode === "portal" && !accessToken) throw new Error("Sessão expirada. Entre novamente no CRM.");
+      const endpoint = accessMode === "internal"
+        ? `/api/clientes/${clienteId}/crm/leads/${pendingClosure.lead.id}`
+        : `/api/crm/leads/${pendingClosure.lead.id}/fechar`;
+      const response = await fetch(endpoint, {
+        method: accessMode === "internal" ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
+          ...(accessMode === "internal" ? { etapa: "fechado" } : {}),
           valor: normalizedValue,
           moeda: "BRL",
           data_conversao: `${saleDate}T12:00:00-03:00`,
@@ -310,7 +322,9 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
         ),
       );
 
-      notifyStageChange(pendingClosure.lead, pendingClosure.etapaAnterior, "fechado");
+      if (accessMode === "portal") {
+        notifyStageChange(pendingClosure.lead, pendingClosure.etapaAnterior, "fechado");
+      }
       setPendingClosure(null);
       setSaleValue("");
     } catch (error) {
@@ -326,7 +340,9 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
 
     setLeads((prev) => prev.map((item) => (item.id === lead.id ? { ...item, pausado_ia: novoPausado } : item)));
 
-    const { error } = await supabase.from("leads").update({ pausado_ia: novoPausado }).eq("id", lead.id);
+    const error = accessMode === "internal"
+      ? await updateInternalLead(lead.id, { pausado_ia: novoPausado })
+      : (await supabase.from("leads").update({ pausado_ia: novoPausado }).eq("id", lead.id)).error;
 
     if (error) {
       setLeads(previousLeads);
@@ -412,4 +428,16 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
       ) : null}
     </>
   );
+
+  async function updateInternalLead(leadId: string, body: Record<string, unknown>) {
+    if (!clienteId) return new Error("Cliente interno não informado.");
+    const response = await fetch(`/api/clientes/${clienteId}/crm/leads/${leadId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (response.ok) return null;
+    const payload = await response.json().catch(() => null);
+    return new Error(payload?.error ?? "Falha ao atualizar lead.");
+  }
 }
