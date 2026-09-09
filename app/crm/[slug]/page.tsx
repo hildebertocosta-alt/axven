@@ -7,6 +7,8 @@ import { LogoutButton } from "./LogoutButton";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const PAGE_SIZE = 1000;
+
 type Props = {
   params: Promise<{ slug: string }>;
 };
@@ -16,6 +18,28 @@ type ClienteRow = {
   nome: string;
   slug: string;
 };
+
+async function fetchAllLeads(clienteId: string) {
+  const leads: LeadRow[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabaseAdmin
+      .from("leads")
+      .select("id, nome, telefone, etapa, cliente_id, origem, criado_em, atualizado_em, pausado_ia")
+      .eq("cliente_id", clienteId)
+      .order("criado_em", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) throw error;
+    const page = (data ?? []) as LeadRow[];
+    leads.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return leads;
+}
 
 export default async function CrmKanbanPage({ params }: Props) {
   const { slug } = await params;
@@ -30,11 +54,7 @@ export default async function CrmKanbanPage({ params }: Props) {
     notFound();
   }
 
-  const { data: leads } = await supabaseAdmin
-    .from("leads")
-    .select("id, nome, telefone, etapa, cliente_id, origem, criado_em, atualizado_em, pausado_ia")
-    .eq("cliente_id", (cliente as ClienteRow).id)
-    .order("criado_em", { ascending: false });
+  const leads = await fetchAllLeads((cliente as ClienteRow).id);
 
   return (
     <AppShell
@@ -49,7 +69,7 @@ export default async function CrmKanbanPage({ params }: Props) {
         { label: "Disparo", href: `/crm/${slug}/disparo`, icon: "📣" },
       ]}
     >
-      <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={(leads as LeadRow[] | null) ?? []} />
+      <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={leads} />
     </AppShell>
   );
 }
