@@ -28,9 +28,17 @@ export type LeadRow = {
   criado_em: string;
   atualizado_em: string | null;
   pausado_ia: boolean;
+  valor_conversao?: number | null;
+  moeda?: string | null;
+  data_conversao?: string | null;
 };
 
 type Column = { key: Etapa; label: string; accent: string };
+
+type PendingClosure = {
+  lead: LeadRow;
+  etapaAnterior: Etapa;
+};
 
 const COLUMNS: Column[] = [
   { key: "lead", label: "Lead", accent: "border-white/10 bg-zinc-950/80" },
@@ -51,6 +59,16 @@ const badgeClasses: Record<Etapa, string> = {
   nao_fechou: "border-orange-500/30 bg-orange-500/10 text-orange-200",
   desqualificado: "border-rose-500/30 bg-rose-500/10 text-rose-200",
 };
+
+function formatCurrency(value: number, currency = "BRL") {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
+}
+
+function localToday() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
 
 function LeadCard({
   lead,
@@ -85,6 +103,15 @@ function LeadCard({
         <span className="mt-3 inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-zinc-400">
           {lead.origem}
         </span>
+      ) : null}
+
+      {lead.etapa === "fechado" && Number(lead.valor_conversao ?? 0) > 0 ? (
+        <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
+          <p className="text-[11px] uppercase tracking-wide text-emerald-300/70">Venda registrada</p>
+          <p className="mt-1 font-semibold text-emerald-100">
+            {formatCurrency(Number(lead.valor_conversao), lead.moeda ?? "BRL")}
+          </p>
+        </div>
       ) : null}
 
       {lead.pausado_ia ? (
@@ -160,8 +187,29 @@ const N8N_WEBHOOK_URL = "https://n8n.hildeberto.digital/webhook/crm-lead-etapa1"
 export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string; initialLeads: LeadRow[] }) {
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
   const [activeLead, setActiveLead] = useState<LeadRow | null>(null);
+  const [pendingClosure, setPendingClosure] = useState<PendingClosure | null>(null);
+  const [saleValue, setSaleValue] = useState("");
+  const [saleDate, setSaleDate] = useState(localToday());
+  const [closing, setClosing] = useState(false);
+  const [closureError, setClosureError] = useState<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  function notifyStageChange(lead: LeadRow, etapaAnterior: Etapa, etapaNova: Etapa) {
+    fetch(N8N_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lead_id: lead.id,
+        cliente_id: lead.cliente_id,
+        cliente_nome: clienteNome,
+        etapa_anterior: etapaAnterior,
+        etapa_nova: etapaNova,
+        telefone: lead.telefone,
+        origem: lead.origem,
+      }),
+    }).catch((err) => console.error("Falha ao notificar n8n:", err));
+  }
 
   function handleDragStart(event: DragStartEvent) {
     const lead = leads.find((item) => item.id === event.active.id);
@@ -181,11 +229,19 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
 
     if (!targetColumn || targetColumn === draggedLead.etapa) return;
 
+    if (targetColumn === "fechado") {
+      setPendingClosure({ lead: draggedLead, etapaAnterior: draggedLead.etapa });
+      setSaleValue(draggedLead.valor_conversao ? String(draggedLead.valor_conversao) : "");
+      setSaleDate(draggedLead.data_conversao ? draggedLead.data_conversao.slice(0, 10) : localToday());
+      setClosureError(null);
+      return;
+    }
+
     const previousLeads = leads;
     const updatedAt = new Date().toISOString();
 
     setLeads((prev) =>
-      prev.map((item) => (item.id === draggedLead.id ? { ...item, etapa: targetColumn, atualizado_em: updatedAt } : item))
+      prev.map((item) => (item.id === draggedLead.id ? { ...item, etapa: targetColumn, atualizado_em: updatedAt } : item)),
     );
 
     const { error } = await supabase
@@ -198,19 +254,70 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
       return;
     }
 
-    fetch(N8N_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lead_id: draggedLead.id,
-        cliente_id: draggedLead.cliente_id,
-        cliente_nome: clienteNome,
-        etapa_anterior: draggedLead.etapa,
-        etapa_nova: targetColumn,
-        telefone: draggedLead.telefone,
-        origem: draggedLead.origem,
-      }),
-    }).catch((err) => console.error("Falha ao notificar n8n:", err));
+    notifyStageChange(draggedLead, draggedLead.etapa, targetColumn);
+  }
+
+  async function confirmClosure() {
+    if (!pendingClosure || closing) return;
+
+    const normalizedValue = Number(saleValue.replace(/\./g, "").replace(",", "."));
+    if (!Number.isFinite(normalizedValue) || normalizedValue <= 0) {
+      setClosureError("Informe um valor de venda válido.");
+      return;
+    }
+    if (!saleDate) {
+      setClosureError("Informe a data da venda.");
+      return;
+    }
+
+    setClosing(true);
+    setClosureError(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Sessão expirada. Entre novamente no CRM.");
+
+      const response = await fetch(`/api/crm/leads/${pendingClosure.lead.id}/fechar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          valor: normalizedValue,
+          moeda: "BRL",
+          data_conversao: `${saleDate}T12:00:00-03:00`,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error ?? "Falha ao registrar fechamento.");
+
+      const leadAtualizado = payload.lead as Partial<LeadRow>;
+      setLeads((prev) =>
+        prev.map((item) =>
+          item.id === pendingClosure.lead.id
+            ? {
+                ...item,
+                etapa: "fechado",
+                valor_conversao: Number(leadAtualizado.valor_conversao ?? normalizedValue),
+                moeda: String(leadAtualizado.moeda ?? "BRL"),
+                data_conversao: String(leadAtualizado.data_conversao ?? `${saleDate}T12:00:00-03:00`),
+                atualizado_em: String(leadAtualizado.atualizado_em ?? new Date().toISOString()),
+              }
+            : item,
+        ),
+      );
+
+      notifyStageChange(pendingClosure.lead, pendingClosure.etapaAnterior, "fechado");
+      setPendingClosure(null);
+      setSaleValue("");
+    } catch (error) {
+      setClosureError(error instanceof Error ? error.message : "Falha ao registrar fechamento.");
+    } finally {
+      setClosing(false);
+    }
   }
 
   async function handleTogglePausa(lead: LeadRow) {
@@ -227,24 +334,82 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={() => setActiveLead(null)}
-    >
-      <div className="flex gap-4 overflow-x-auto pb-2">
-        {COLUMNS.map((column) => (
-          <KanbanColumn
-            key={column.key}
-            column={column}
-            leads={leads.filter((lead) => lead.etapa === column.key)}
-            onTogglePausa={handleTogglePausa}
-          />
-        ))}
-      </div>
-      <DragOverlay>{activeLead ? <LeadCard lead={activeLead} dragging /> : null}</DragOverlay>
-    </DndContext>
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveLead(null)}
+      >
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          {COLUMNS.map((column) => (
+            <KanbanColumn
+              key={column.key}
+              column={column}
+              leads={leads.filter((lead) => lead.etapa === column.key)}
+              onTogglePausa={handleTogglePausa}
+            />
+          ))}
+        </div>
+        <DragOverlay>{activeLead ? <LeadCard lead={activeLead} dragging /> : null}</DragOverlay>
+      </DndContext>
+
+      {pendingClosure ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onPointerDown={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-md rounded-3xl border border-emerald-500/20 bg-zinc-950 p-6 shadow-2xl shadow-black/60">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">Registrar venda</p>
+            <h3 className="mt-2 text-xl font-semibold text-white">{pendingClosure.lead.nome}</h3>
+            <p className="mt-2 text-sm text-zinc-400">Para mover para Fechado, registre o valor e a data real da venda.</p>
+
+            <div className="mt-5 space-y-4">
+              <label className="block text-sm text-zinc-300">
+                <span className="mb-2 block">Valor da venda (R$)</span>
+                <input
+                  value={saleValue}
+                  onChange={(event) => setSaleValue(event.target.value)}
+                  inputMode="decimal"
+                  placeholder="Ex.: 2500,00"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-500/40"
+                />
+              </label>
+              <label className="block text-sm text-zinc-300">
+                <span className="mb-2 block">Data da venda</span>
+                <input
+                  type="date"
+                  value={saleDate}
+                  onChange={(event) => setSaleDate(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-500/40"
+                />
+              </label>
+            </div>
+
+            {closureError ? <p className="mt-4 text-sm text-rose-300">{closureError}</p> : null}
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                disabled={closing}
+                onClick={() => {
+                  setPendingClosure(null);
+                  setClosureError(null);
+                }}
+                className="flex-1 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-zinc-300 hover:bg-white/5 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={closing}
+                onClick={confirmClosure}
+                className="flex-1 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-zinc-950 hover:bg-emerald-400 disabled:opacity-50"
+              >
+                {closing ? "Salvando..." : "Confirmar venda"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
