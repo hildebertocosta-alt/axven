@@ -26,7 +26,7 @@ async function fetchAllLeads(clienteId: string) {
   while (true) {
     const { data, error } = await supabaseAdmin
       .from("leads")
-      .select("id, nome, telefone, etapa, cliente_id, origem, criado_em, atualizado_em, pausado_ia")
+      .select("id, nome, telefone, etapa, cliente_id, origem, criado_em, atualizado_em, pausado_ia, valor_conversao, moeda, data_conversao")
       .eq("cliente_id", clienteId)
       .order("criado_em", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
