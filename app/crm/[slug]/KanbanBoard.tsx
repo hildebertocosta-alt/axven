@@ -74,10 +74,12 @@ function LeadCard({
   lead,
   dragging = false,
   onTogglePausa,
+  accessMode = "portal",
 }: {
   lead: LeadRow;
   dragging?: boolean;
   onTogglePausa?: (lead: LeadRow) => void;
+  accessMode?: AccessMode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
 
@@ -93,7 +95,9 @@ function LeadCard({
       style={style}
       {...attributes}
       {...listeners}
-      className={`cursor-grab rounded-2xl border border-white/10 bg-zinc-900/80 p-4 text-sm shadow-sm transition active:cursor-grabbing ${
+      className={`cursor-grab border text-sm transition active:cursor-grabbing ${accessMode === "internal"
+        ? "rounded-xl border-white/[0.07] bg-[#111218] p-3.5 shadow-[0_12px_35px_rgba(0,0,0,.16)] hover:border-white/[0.12] hover:bg-[#13141b]"
+        : "rounded-2xl border-white/10 bg-zinc-900/80 p-4 shadow-sm"} ${
         dragging ? "rotate-2 shadow-lg shadow-black/40" : ""
       }`}
     >
@@ -146,15 +150,17 @@ function KanbanColumn({
   column,
   leads,
   onTogglePausa,
+  accessMode = "portal",
 }: {
   column: Column;
   leads: LeadRow[];
   onTogglePausa: (lead: LeadRow) => void;
+  accessMode?: AccessMode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.key });
 
   return (
-    <div className="flex min-w-[280px] flex-1 flex-col">
+    <div className={`flex flex-col ${accessMode === "internal" ? "min-w-0" : "min-w-[280px] flex-1"}`}>
       <div className="mb-3 flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${badgeClasses[column.key]}`}>
@@ -165,13 +171,13 @@ function KanbanColumn({
       </div>
       <div
         ref={setNodeRef}
-        className={`flex min-h-[200px] flex-1 flex-col gap-3 rounded-3xl border p-3 transition ${column.accent} ${
+        className={`flex min-h-[200px] flex-1 flex-col gap-3 border p-3 transition ${accessMode === "internal" ? "rounded-2xl border-white/[0.07] bg-[#0d0e13]" : `rounded-3xl ${column.accent}`} ${
           isOver ? "ring-2 ring-violet-500/40" : ""
         }`}
       >
         <SortableContext items={leads.map((lead) => lead.id)} strategy={verticalListSortingStrategy}>
           {leads.map((lead) => (
-            <LeadCard key={lead.id} lead={lead} onTogglePausa={onTogglePausa} />
+            <LeadCard key={lead.id} lead={lead} onTogglePausa={onTogglePausa} accessMode={accessMode} />
           ))}
         </SortableContext>
         {leads.length === 0 ? (
@@ -184,7 +190,16 @@ function KanbanColumn({
 
 const N8N_WEBHOOK_URL = "https://n8n.hildeberto.digital/webhook/crm-lead-etapa1";
 
-export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string; initialLeads: LeadRow[] }) {
+type AccessMode = "internal" | "portal";
+
+type KanbanBoardProps = {
+  clienteNome: string;
+  initialLeads: LeadRow[];
+  accessMode?: AccessMode;
+  clienteId?: string;
+};
+
+export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", clienteId }: KanbanBoardProps) {
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
   const [activeLead, setActiveLead] = useState<LeadRow | null>(null);
   const [pendingClosure, setPendingClosure] = useState<PendingClosure | null>(null);
@@ -244,17 +259,18 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
       prev.map((item) => (item.id === draggedLead.id ? { ...item, etapa: targetColumn, atualizado_em: updatedAt } : item)),
     );
 
-    const { error } = await supabase
-      .from("leads")
-      .update({ etapa: targetColumn, atualizado_em: updatedAt })
-      .eq("id", draggedLead.id);
+    const error = accessMode === "internal"
+      ? await updateInternalLead(draggedLead.id, { etapa: targetColumn })
+      : (await supabase.from("leads").update({ etapa: targetColumn, atualizado_em: updatedAt }).eq("id", draggedLead.id)).error;
 
     if (error) {
       setLeads(previousLeads);
       return;
     }
 
-    notifyStageChange(draggedLead, draggedLead.etapa, targetColumn);
+    if (accessMode === "portal") {
+      notifyStageChange(draggedLead, draggedLead.etapa, targetColumn);
+    }
   }
 
   async function confirmClosure() {
@@ -274,17 +290,19 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
     setClosureError(null);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      if (!accessToken) throw new Error("Sessão expirada. Entre novamente no CRM.");
-
-      const response = await fetch(`/api/crm/leads/${pendingClosure.lead.id}/fechar`, {
-        method: "POST",
+      const accessToken = accessMode === "portal" ? (await supabase.auth.getSession()).data.session?.access_token : null;
+      if (accessMode === "portal" && !accessToken) throw new Error("Sessão expirada. Entre novamente no CRM.");
+      const endpoint = accessMode === "internal"
+        ? `/api/clientes/${clienteId}/crm/leads/${pendingClosure.lead.id}`
+        : `/api/crm/leads/${pendingClosure.lead.id}/fechar`;
+      const response = await fetch(endpoint, {
+        method: accessMode === "internal" ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
+          ...(accessMode === "internal" ? { etapa: "fechado" } : {}),
           valor: normalizedValue,
           moeda: "BRL",
           data_conversao: `${saleDate}T12:00:00-03:00`,
@@ -310,7 +328,9 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
         ),
       );
 
-      notifyStageChange(pendingClosure.lead, pendingClosure.etapaAnterior, "fechado");
+      if (accessMode === "portal") {
+        notifyStageChange(pendingClosure.lead, pendingClosure.etapaAnterior, "fechado");
+      }
       setPendingClosure(null);
       setSaleValue("");
     } catch (error) {
@@ -326,7 +346,9 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
 
     setLeads((prev) => prev.map((item) => (item.id === lead.id ? { ...item, pausado_ia: novoPausado } : item)));
 
-    const { error } = await supabase.from("leads").update({ pausado_ia: novoPausado }).eq("id", lead.id);
+    const error = accessMode === "internal"
+      ? await updateInternalLead(lead.id, { pausado_ia: novoPausado })
+      : (await supabase.from("leads").update({ pausado_ia: novoPausado }).eq("id", lead.id)).error;
 
     if (error) {
       setLeads(previousLeads);
@@ -342,17 +364,18 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
         onDragEnd={handleDragEnd}
         onDragCancel={() => setActiveLead(null)}
       >
-        <div className="flex gap-4 overflow-x-auto pb-2">
+        <div className={accessMode === "internal" ? "grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" : "flex gap-4 overflow-x-auto pb-2"}>
           {COLUMNS.map((column) => (
             <KanbanColumn
               key={column.key}
               column={column}
               leads={leads.filter((lead) => lead.etapa === column.key)}
               onTogglePausa={handleTogglePausa}
+              accessMode={accessMode}
             />
           ))}
         </div>
-        <DragOverlay>{activeLead ? <LeadCard lead={activeLead} dragging /> : null}</DragOverlay>
+        <DragOverlay>{activeLead ? <LeadCard lead={activeLead} dragging accessMode={accessMode} /> : null}</DragOverlay>
       </DndContext>
 
       {pendingClosure ? (
@@ -412,4 +435,16 @@ export function KanbanBoard({ clienteNome, initialLeads }: { clienteNome: string
       ) : null}
     </>
   );
+
+  async function updateInternalLead(leadId: string, body: Record<string, unknown>) {
+    if (!clienteId) return new Error("Cliente interno não informado.");
+    const response = await fetch(`/api/clientes/${clienteId}/crm/leads/${leadId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (response.ok) return null;
+    const payload = await response.json().catch(() => null);
+    return new Error(payload?.error ?? "Falha ao atualizar lead.");
+  }
 }
