@@ -2,109 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/app/components/dashboard/AppShell";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-type Props = { params: Promise<{ id: string }> };
-
-type Cliente = {
-  id: string;
-  nome: string;
-  nicho: string | null;
-  status_pagamento: "pago" | "em_dia" | "atrasado" | "cancelado";
-  honorarios: number | null;
-  telefone: string | null;
-  canal_aquisicao: string | null;
-  data_fim_contrato: string | null;
-  dia_pagamento: number | null;
-  slug: string | null;
-};
-
-const statusLabel = { pago: "Pago", em_dia: "Em dia", atrasado: "Atrasado", cancelado: "Cancelado" };
-const statusClass = {
-  pago: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-  em_dia: "border-sky-500/30 bg-sky-500/10 text-sky-200",
-  atrasado: "border-amber-500/30 bg-amber-500/10 text-amber-200",
-  cancelado: "border-rose-500/30 bg-rose-500/10 text-rose-200",
-};
-
-function moeda(value: number | null) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(Number(value ?? 0));
-}
-
-export default async function Cliente360Page({ params }: Props) {
-  const { id } = await params;
-  const { data } = await supabaseAdmin
-    .from("clientes")
-    .select("id,nome,nicho,status_pagamento,honorarios,telefone,canal_aquisicao,data_fim_contrato,dia_pagamento,slug")
-    .eq("id", id)
-    .single();
-
-  if (!data) notFound();
-  const cliente = data as Cliente;
-
-  const [leads, relatorios, tarefas, documentos, financeiro] = await Promise.all([
-    supabaseAdmin.from("leads").select("id", { count: "exact", head: true }).eq("cliente_id", id),
-    supabaseAdmin.from("relatorios").select("id", { count: "exact", head: true }).eq("cliente_id", id),
-    supabaseAdmin.from("tarefas").select("id", { count: "exact", head: true }).eq("cliente_id", id).eq("concluido", false),
-    supabaseAdmin.from("documentos").select("id", { count: "exact", head: true }).eq("cliente_id", id),
-    supabaseAdmin.from("financeiro").select("valor,status").eq("cliente_id", id),
-  ]);
-
-  const recebida = (financeiro.data ?? []).filter((item) => item.status === "pago").reduce((sum, item) => sum + Number(item.valor ?? 0), 0);
-  const cancelado = cliente.status_pagamento === "cancelado";
-
-  return (
-    <AppShell title={cliente.nome} subtitle="Cliente 360" activeLabel="Clientes">
-      <div className="space-y-6">
-        {cancelado ? (
-          <div className="rounded-3xl border border-rose-500/30 bg-rose-500/10 p-5">
-            <p className="text-sm font-semibold text-rose-200">Cliente cancelado</p>
-            <p className="mt-1 text-sm text-rose-200/75">A operação está preservada para histórico. O acesso do portal permanece bloqueado enquanto o status estiver cancelado.</p>
-          </div>
-        ) : null}
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <Link href="/clientes" className="text-sm text-zinc-400 hover:text-white">← Voltar para clientes</Link>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <h2 className="text-2xl font-semibold text-white">{cliente.nome}</h2>
-              <span className={`rounded-full border px-3 py-1 text-xs font-medium ${statusClass[cliente.status_pagamento]}`}>{statusLabel[cliente.status_pagamento]}</span>
-            </div>
-            <p className="mt-1 text-sm text-zinc-400">{cliente.nicho ?? "Nicho não informado"}</p>
-          </div>
-          {!cancelado && cliente.slug ? <Link href={`/crm/${cliente.slug}`} className="rounded-2xl border border-[#D85A30]/40 bg-[#D85A30]/10 px-4 py-2 text-sm font-semibold text-[#f0a480]">Abrir CRM do cliente</Link> : null}
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-5"><p className="text-sm text-zinc-400">Leads</p><p className="mt-3 text-3xl font-semibold text-white">{leads.count ?? 0}</p></div>
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-5"><p className="text-sm text-zinc-400">Tarefas abertas</p><p className="mt-3 text-3xl font-semibold text-white">{tarefas.count ?? 0}</p></div>
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-5"><p className="text-sm text-zinc-400">Relatórios</p><p className="mt-3 text-3xl font-semibold text-white">{relatorios.count ?? 0}</p></div>
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-5"><p className="text-sm text-zinc-400">Documentos</p><p className="mt-3 text-3xl font-semibold text-white">{documentos.count ?? 0}</p></div>
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-5"><p className="text-sm text-zinc-400">Receita recebida</p><p className="mt-3 text-3xl font-semibold text-white">{moeda(recebida)}</p></div>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
-            <h3 className="text-lg font-semibold text-white">Comercial e contrato</h3>
-            <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
-              <div><dt className="text-zinc-500">Honorários</dt><dd className="mt-1 font-medium text-white">{moeda(cliente.honorarios)}</dd></div>
-              <div><dt className="text-zinc-500">Dia de pagamento</dt><dd className="mt-1 font-medium text-white">{cliente.dia_pagamento ?? "—"}</dd></div>
-              <div><dt className="text-zinc-500">Canal de aquisição</dt><dd className="mt-1 font-medium text-white">{cliente.canal_aquisicao ?? "—"}</dd></div>
-              <div><dt className="text-zinc-500">Fim do contrato</dt><dd className="mt-1 font-medium text-white">{cliente.data_fim_contrato ? new Date(`${cliente.data_fim_contrato}T00:00:00-03:00`).toLocaleDateString("pt-BR") : "—"}</dd></div>
-            </dl>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
-            <h3 className="text-lg font-semibold text-white">Contato e operação</h3>
-            <dl className="mt-5 space-y-4 text-sm">
-              <div><dt className="text-zinc-500">WhatsApp</dt><dd className="mt-1 font-medium text-white">{cliente.telefone ?? "—"}</dd></div>
-              <div><dt className="text-zinc-500">Portal CRM</dt><dd className="mt-1 font-medium text-white">{cancelado ? "Bloqueado — cliente cancelado" : cliente.slug ? `/crm/${cliente.slug}` : "Não configurado"}</dd></div>
-            </dl>
-          </div>
-        </div>
-      </div>
-    </AppShell>
-  );
-}
+export const dynamic="force-dynamic"; export const revalidate=0;
+type Props={params:Promise<{id:string}>};
+type Cliente={id:string;nome:string;nicho:string|null;status_pagamento:"pago"|"em_dia"|"atrasado"|"cancelado";honorarios:number|null;telefone:string|null;canal_aquisicao:string|null;data_fim_contrato:string|null;dia_pagamento:number|null;slug:string|null};
+const statusLabel={pago:"Pago",em_dia:"Em dia",atrasado:"Atrasado",cancelado:"Cancelado"};
+const statusClass={pago:"border-emerald-500/20 bg-emerald-500/[0.08] text-emerald-300",em_dia:"border-emerald-500/20 bg-emerald-500/[0.08] text-emerald-300",atrasado:"border-amber-500/20 bg-amber-500/[0.08] text-amber-300",cancelado:"border-rose-500/20 bg-rose-500/[0.08] text-rose-300"};
+function moeda(v:number|null){return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0}).format(Number(v??0));}
+export default async function Cliente360Page({params}:Props){const{id}=await params;const{data}=await supabaseAdmin.from("clientes").select("id,nome,nicho,status_pagamento,honorarios,telefone,canal_aquisicao,data_fim_contrato,dia_pagamento,slug").eq("id",id).single();if(!data)notFound();const cliente=data as Cliente;const[leads,relatorios,tarefas,documentos,financeiro]=await Promise.all([supabaseAdmin.from("leads").select("id",{count:"exact",head:true}).eq("cliente_id",id),supabaseAdmin.from("relatorios").select("id",{count:"exact",head:true}).eq("cliente_id",id),supabaseAdmin.from("tarefas").select("id",{count:"exact",head:true}).eq("cliente_id",id).eq("concluido",false),supabaseAdmin.from("documentos").select("id",{count:"exact",head:true}).eq("cliente_id",id),supabaseAdmin.from("financeiro").select("valor,status").eq("cliente_id",id)]);const recebida=(financeiro.data??[]).filter(i=>i.status==="pago").reduce((s,i)=>s+Number(i.valor??0),0);const cancelado=cliente.status_pagamento==="cancelado";const metrics=[['Leads',leads.count??0],['Tarefas abertas',tarefas.count??0],['Relatórios',relatorios.count??0],['Documentos',documentos.count??0],['Receita recebida',moeda(recebida)]];
+return <AppShell title={cliente.nome} subtitle="Cliente 360 · Operação" activeLabel="Clientes"><div className="space-y-5">
+ <section className={`rounded-[28px] border p-7 lg:p-8 ${cancelado?'border-rose-500/20 bg-gradient-to-br from-rose-500/[0.07] to-[#0d0e13]':'border-white/[0.07] bg-gradient-to-br from-[#0d0e13] via-[#0b0c10] to-[#160d0d]'}`}><Link href="/clientes" className="text-[11px] text-zinc-600 transition hover:text-zinc-300">← Carteira de clientes</Link><div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><div className="flex flex-wrap items-center gap-3"><h2 className="text-3xl font-semibold tracking-[-0.04em] text-white lg:text-4xl">{cliente.nome}</h2><span className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${statusClass[cliente.status_pagamento]}`}>{statusLabel[cliente.status_pagamento]}</span></div><p className="mt-2 text-sm text-zinc-500">{cliente.nicho??'Nicho não informado'} · visão operacional consolidada</p></div>{!cancelado&&cliente.slug?<Link href={`/crm/${cliente.slug}`} className="rounded-xl border border-[#ff5a3c]/30 bg-[#ff5a3c]/10 px-4 py-2.5 text-xs font-semibold text-[#ff8a70] transition hover:bg-[#ff5a3c]/15">Abrir CRM →</Link>:null}</div></section>
+ {cancelado?<div className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.06] px-5 py-4 text-xs text-rose-300">Operação preservada para histórico. Portal bloqueado enquanto o cliente permanecer cancelado.</div>:null}
+ <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{metrics.map(([label,value],i)=><div key={String(label)} className={`rounded-2xl border p-5 ${i===0?'border-[#ff5a3c]/25 bg-[#ff5a3c]/[0.055]':'border-white/[0.07] bg-[#0d0e13]'}`}><p className="text-[11px] text-zinc-600">{label}</p><p className="mt-3 text-2xl font-semibold tracking-[-0.035em] text-white">{value}</p></div>)}</div>
+ <div className="grid gap-4 lg:grid-cols-2"><section className="rounded-[24px] border border-white/[0.07] bg-[#0d0e13] p-6"><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#ff7458]">COMERCIAL</p><h3 className="mt-1 text-lg font-semibold text-white">Contrato e recorrência</h3><dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 text-sm"><Info label="Honorários" value={moeda(cliente.honorarios)}/><Info label="Dia de pagamento" value={cliente.dia_pagamento??'—'}/><Info label="Aquisição" value={cliente.canal_aquisicao??'—'}/><Info label="Fim do contrato" value={cliente.data_fim_contrato?new Date(`${cliente.data_fim_contrato}T00:00:00-03:00`).toLocaleDateString('pt-BR'):'—'}/></dl></section><section className="rounded-[24px] border border-white/[0.07] bg-[#0d0e13] p-6"><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">OPERAÇÃO</p><h3 className="mt-1 text-lg font-semibold text-white">Contato e acesso</h3><dl className="mt-6 space-y-5 text-sm"><Info label="WhatsApp" value={cliente.telefone??'—'}/><Info label="Portal CRM" value={cancelado?'Bloqueado — cliente cancelado':cliente.slug?`/crm/${cliente.slug}`:'Não configurado'}/></dl></section></div>
+ </div></AppShell>}
+function Info({label,value}:{label:string;value:string|number}){return <div><dt className="text-[11px] text-zinc-600">{label}</dt><dd className="mt-1.5 font-medium text-zinc-200">{value}</dd></div>}
