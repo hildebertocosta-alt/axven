@@ -1,84 +1,84 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
+import { getMetaOAuthRedirectUri, META_OAUTH_STATE_COOKIE, metaOAuthCookieOptions, validateMetaOAuthState } from "@/app/lib/metaOAuth";
 
 const GRAPH_VERSION = "v21.0";
 
-function redirectComStatus(req: NextRequest, status: "conectado" | "erro", detalhe?: string) {
+function redirectComStatus(req: NextRequest, status: "conectado" | "erro", detalhe?: string, clearState = false) {
   const url = new URL("/integracoes", req.url);
   url.searchParams.set("status", status);
   if (detalhe) url.searchParams.set("detalhe", detalhe);
-  return NextResponse.redirect(url);
+  const response = NextResponse.redirect(url);
+  response.headers.set("Cache-Control", "no-store");
+  if (clearState) response.cookies.set(META_OAUTH_STATE_COOKIE, "", { ...metaOAuthCookieOptions(), maxAge: 0 });
+  return response;
 }
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   const state = req.nextUrl.searchParams.get("state");
-  const stateCookie = req.cookies.get("meta_oauth_state")?.value;
-
-  if (!code) return redirectComStatus(req, "erro", "codigo_ausente");
-  if (!state || !stateCookie || state !== stateCookie) return redirectComStatus(req, "erro", "state_invalido");
+  const stateCookie = req.cookies.get(META_OAUTH_STATE_COOKIE)?.value ?? null;
+  if (!code) return redirectComStatus(req, "erro", "codigo_ausente", true);
 
   const appId = process.env.META_APP_ID;
   const appSecret = process.env.META_APP_SECRET;
-  const redirectUri = process.env.META_OAUTH_REDIRECT_URI;
+  if (!appId || !appSecret || !process.env.META_OAUTH_REDIRECT_URI) {
+    return redirectComStatus(req, "erro", "config_ausente", true);
+  }
+  if (!validateMetaOAuthState(state, stateCookie, appSecret)) {
+    return redirectComStatus(req, "erro", "state_invalido", true);
+  }
 
-  if (!appId || !appSecret || !redirectUri) {
-    return redirectComStatus(req, "erro", "config_ausente");
+  let redirectUri: string;
+  try {
+    redirectUri = getMetaOAuthRedirectUri(process.env.META_OAUTH_REDIRECT_URI);
+  } catch {
+    return redirectComStatus(req, "erro", "config_ausente", true);
   }
 
   try {
-    // 1) troca o code por um token de curta duração
     const shortLivedUrl = new URL(`https://graph.facebook.com/${GRAPH_VERSION}/oauth/access_token`);
     shortLivedUrl.searchParams.set("client_id", appId);
     shortLivedUrl.searchParams.set("redirect_uri", redirectUri);
     shortLivedUrl.searchParams.set("client_secret", appSecret);
     shortLivedUrl.searchParams.set("code", code);
-
-    const shortLivedRes = await fetch(shortLivedUrl.toString());
+    const shortLivedRes = await fetch(shortLivedUrl.toString(), { cache: "no-store" });
     const shortLivedData = await shortLivedRes.json();
-    if (!shortLivedData.access_token) {
-      return redirectComStatus(req, "erro", "token_curto_falhou");
+    if (!shortLivedRes.ok || !shortLivedData.access_token) {
+      return redirectComStatus(req, "erro", "token_curto_falhou", true);
     }
 
-    // 2) troca o token de curta duração por um de longa duração (~60 dias)
     const longLivedUrl = new URL(`https://graph.facebook.com/${GRAPH_VERSION}/oauth/access_token`);
     longLivedUrl.searchParams.set("grant_type", "fb_exchange_token");
     longLivedUrl.searchParams.set("client_id", appId);
     longLivedUrl.searchParams.set("client_secret", appSecret);
     longLivedUrl.searchParams.set("fb_exchange_token", shortLivedData.access_token);
-
-    const longLivedRes = await fetch(longLivedUrl.toString());
+    const longLivedRes = await fetch(longLivedUrl.toString(), { cache: "no-store" });
     const longLivedData = await longLivedRes.json();
-    if (!longLivedData.access_token) {
-      return redirectComStatus(req, "erro", "token_longo_falhou");
+    if (!longLivedRes.ok || !longLivedData.access_token) {
+      return redirectComStatus(req, "erro", "token_longo_falhou", true);
     }
+
+    const meUrl = new URL(`https://graph.facebook.com/${GRAPH_VERSION}/me`);
+    meUrl.searchParams.set("fields", "id,name");
+    const meRes = await fetch(meUrl.toString(), { headers: { Authorization: `Bearer ${longLivedData.access_token}` }, cache: "no-store" });
+    const meData = await meRes.json();
+    if (!meRes.ok || meData.error) return redirectComStatus(req, "erro", "identidade_falhou", true);
 
     const expiresAt = longLivedData.expires_in
       ? new Date(Date.now() + longLivedData.expires_in * 1000).toISOString()
       : null;
-
-    // 3) identifica quem conectou
-    const meRes = await fetch(
-      `https://graph.facebook.com/${GRAPH_VERSION}/me?fields=id,name&access_token=${longLivedData.access_token}`,
-    );
-    const meData = await meRes.json();
-
-    // Conexão é única por agência — substitui a anterior se existir.
-    await supabaseAdmin.from("integracao_meta").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     const { error } = await supabaseAdmin.from("integracao_meta").insert({
       access_token: longLivedData.access_token,
       token_type: "long_lived_user",
       expires_at: expiresAt,
-      meta_user_id: meData?.id ?? null,
-      meta_user_nome: meData?.name ?? null,
+      meta_user_id: meData.id ?? null,
+      meta_user_nome: meData.name ?? null,
     });
+    if (error) return redirectComStatus(req, "erro", "banco_falhou", true);
 
-    if (error) return redirectComStatus(req, "erro", "banco_falhou");
-
-    const response = redirectComStatus(req, "conectado");
-    response.cookies.delete("meta_oauth_state");
-    return response;
+    return redirectComStatus(req, "conectado", undefined, true);
   } catch {
-    return redirectComStatus(req, "erro", "excecao");
+    return redirectComStatus(req, "erro", "excecao", true);
   }
 }

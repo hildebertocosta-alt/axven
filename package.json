@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:clinicas-v2": "node --test tests/clinic-acquisition-v2.test.mjs"
+    "test:clinicas-v2": "node --test tests/clinic-acquisition-v2.test.mjs",
+    "test:meta-oauth": "node --test tests/meta-oauth-state.test.mjs"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.21",

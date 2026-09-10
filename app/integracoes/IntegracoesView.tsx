@@ -33,30 +33,34 @@ function formatDate(value: string | null) {
 
 export function IntegracoesView({
   conexao,
+  conexaoValida,
+  conexaoExpirada,
   clientesIniciais,
   statusRedirect,
   detalheRedirect,
 }: {
   conexao: ConexaoMeta | null;
+  conexaoValida: boolean;
+  conexaoExpirada: boolean;
   clientesIniciais: ClienteMetaRow[];
   statusRedirect: string | null;
   detalheRedirect: string | null;
 }) {
   const [clientes, setClientes] = useState<ClienteMetaRow[]>(clientesIniciais);
   const [contas, setContas] = useState<ContaMeta[]>([]);
-  const [loadingContas, setLoadingContas] = useState(!!conexao);
+  const [loadingContas, setLoadingContas] = useState(conexaoValida);
   const [selecoes, setSelecoes] = useState<Record<string, string>>(
     Object.fromEntries(clientesIniciais.map((c) => [c.id, c.meta_account_id ?? ""])),
   );
   const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!conexao) return;
+    if (!conexaoValida) return;
     fetch("/api/integracoes/meta/contas")
       .then((res) => res.json())
       .then((payload) => setContas(payload?.contas ?? []))
       .finally(() => setLoadingContas(false));
-  }, [conexao]);
+  }, [conexaoValida]);
 
   const salvarConta = async (clienteId: string) => {
     setSavingId(clienteId);
@@ -97,6 +101,7 @@ export function IntegracoesView({
                   Conectado como <span className="text-white">{conexao.meta_user_nome ?? "conta Meta"}</span>
                 </p>
                 <p>Desde {formatDate(conexao.conectado_em)}{conexao.expires_at ? ` · expira em ${formatDate(conexao.expires_at)}` : ""}</p>
+                {!conexaoValida ? <p className="font-medium text-amber-300">{conexaoExpirada ? "Conexão expirada." : "Conexão indisponível."} Reconecte para consultar a Meta.</p> : null}
               </div>
             ) : (
               <p className="mt-1 text-sm text-zinc-400">
@@ -140,7 +145,7 @@ export function IntegracoesView({
                 <tr key={cliente.id}>
                   <td className="px-4 py-3 font-medium text-white">{cliente.nome}</td>
                   <td className="px-4 py-3">
-                    {conexao ? (
+                    {conexaoValida ? (
                       <select
                         value={selecoes[cliente.id] ?? ""}
                         onChange={(event) => setSelecoes((prev) => ({ ...prev, [cliente.id]: event.target.value }))}
@@ -160,7 +165,7 @@ export function IntegracoesView({
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {conexao ? (
+                    {conexaoValida ? (
                       <button
                         onClick={() => salvarConta(cliente.id)}
                         disabled={savingId === cliente.id}
