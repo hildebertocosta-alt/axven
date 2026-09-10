@@ -1,24 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 declare global { interface Window { fbq?: (...args: unknown[]) => void } }
 
 type Answers = Record<string, string>;
 type ResultState = null | "qualified" | "unqualified" | "error";
 const trackingKeys = ["utm_source","utm_medium","utm_campaign","utm_content","utm_term","fbclid","campaign_id","adset_id","ad_id"] as const;
+function captureTracking(){const params=new URLSearchParams(window.location.search);const captured:Record<string,string>={};trackingKeys.forEach(k=>{const value=params.get(k);if(value)captured[k]=value});return captured}
 
 const questions = [
   { key:"name", label:"Qual é o seu nome?", type:"text", placeholder:"Seu nome e sobrenome" },
-  { key:"clinic", label:"Qual é o nome da sua clínica?", type:"text", placeholder:"Nome da clínica" },
-  { key:"whatsapp", label:"Qual é o seu WhatsApp?", type:"tel", placeholder:"(81) 99999-9999" },
-  { key:"instagram", label:"Qual é o Instagram da clínica?", type:"text", placeholder:"@sua_clinica" },
-  { key:"revenue", label:"Qual é o faturamento médio mensal da clínica?", type:"options", options:[["20","Até R$ 20 mil"],["34","R$ 20 mil a R$ 35 mil"],["60","R$ 35 mil a R$ 60 mil"],["100","R$ 60 mil a R$ 100 mil"],["300","R$ 100 mil a R$ 300 mil"],["301","Acima de R$ 300 mil"]] },
-  { key:"capacity", label:"Quanto a clínica está preparada para investir mensalmente em aquisição, considerando estratégia, tecnologia e mídia?", type:"options", options:[["1","Até R$ 1.500"],["2","R$ 1.500 a R$ 2.000"],["3.9","R$ 2.000 a R$ 4.000"],["6","R$ 4.000 a R$ 6.000"],["10","R$ 6.000 a R$ 10.000"],["11","Acima de R$ 10.000"]] },
-  { key:"ads", label:"Quanto sua clínica investe atualmente em anúncios?", type:"options", options:[["Ainda não investimos","Ainda não investimos"],["Até R$ 1.500","Até R$ 1.500"],["R$ 1.500 a R$ 3.000","R$ 1.500 a R$ 3.000"],["R$ 3.000 a R$ 5.000","R$ 3.000 a R$ 5.000"],["R$ 5.000 a R$ 10.000","R$ 5.000 a R$ 10.000"],["Acima de R$ 10.000","Acima de R$ 10.000"]] },
-  { key:"sales", label:"Quem atende hoje os novos leads da clínica?", type:"options", options:[["Eu mesmo(a)","Eu mesmo(a)"],["Uma pessoa responsável pelo atendimento","Uma pessoa responsável pelo atendimento"],["Temos uma equipe comercial","Temos uma equipe comercial"],["Não temos ninguém responsável","Não temos ninguém responsável"]] },
-  { key:"challenge", label:"Qual é o principal desafio comercial hoje?", type:"options", options:[["Gerar mais oportunidades","Gerar mais oportunidades"],["Melhorar a qualidade dos leads","Melhorar a qualidade dos leads"],["Transformar mais leads em agendamentos","Transformar mais leads em agendamentos"],["Melhorar o comparecimento","Melhorar o comparecimento"],["Transformar mais agendamentos em vendas","Transformar mais agendamentos em vendas"],["Identificar onde perdemos oportunidades","Identificar onde perdemos oportunidades"],["Outro","Outro"]] },
-  { key:"timing", label:"Quando vocês pretendem começar?", type:"options", options:[["Agora","Agora"],["Nos próximos 30 dias","Nos próximos 30 dias"],["Entre 1 e 3 meses","Entre 1 e 3 meses"],["Estou apenas pesquisando","Estou apenas pesquisando"]] },
+  { key:"whatsapp", label:"Qual é o melhor WhatsApp para falar com você?", type:"tel", placeholder:"(81) 99999-9999" },
+  { key:"instagram", label:"Qual é o Instagram da sua clínica?", type:"text", placeholder:"@sua_clinica" },
+  { key:"revenue", label:"Qual é o faturamento médio mensal da sua clínica?", type:"options", options:[["20","Até R$ 20 mil"],["34","R$ 20 mil a R$ 35 mil"],["60","R$ 35 mil a R$ 60 mil"],["100","R$ 60 mil a R$ 100 mil"],["300","R$ 100 mil a R$ 300 mil"],["301","Acima de R$ 300 mil"]] },
+  { key:"ads", label:"Quanto sua clínica investe atualmente em anúncios por mês?", type:"options", options:[["Ainda não investimos","Ainda não investimos"],["Até R$ 1.500","Até R$ 1.500"],["R$ 1.500 a R$ 3.000","R$ 1.500 a R$ 3.000"],["R$ 3.000 a R$ 5.000","R$ 3.000 a R$ 5.000"],["R$ 5.000 a R$ 10.000","R$ 5.000 a R$ 10.000"],["Acima de R$ 10.000","Acima de R$ 10.000"]] },
+  { key:"challenge", label:"Qual é o principal desafio da sua clínica hoje?", type:"options", options:[["Gerar mais oportunidades","Gerar mais oportunidades"],["Melhorar a qualidade dos leads","Melhorar a qualidade dos leads"],["Transformar mais leads em agendamentos","Transformar mais leads em agendamentos"],["Melhorar o comparecimento","Melhorar o comparecimento"],["Transformar mais agendamentos em vendas","Transformar mais agendamentos em vendas"],["Identificar onde perdemos oportunidades","Identificar onde perdemos oportunidades"],["Outro","Outro"]] },
+  { key:"new_patients", label:"Em média, quantos novos pacientes entram por mês?", type:"options", options:[["0-5","Até 5"],["6-10","De 6 a 10"],["11-20","De 11 a 20"],["21-40","De 21 a 40"],["41-60","De 41 a 60"],["61+","Mais de 60"]] },
 ] as const;
 
 function formatPhone(value:string){const digits=value.replace(/\D/g,"").slice(0,11);if(digits.length<=2)return digits;if(digits.length<=7)return `(${digits.slice(0,2)}) ${digits.slice(2)}`;return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`}
@@ -26,8 +24,7 @@ function formatInstagram(value:string){const clean=value.trim().replace(/^https?
 function track(name:string){if(typeof window!=="undefined"&&window.fbq)window.fbq("trackCustom",name)}
 
 export default function DiagnosticForm(){
-  const [started,setStarted]=useState(false); const [step,setStep]=useState(0); const [answers,setAnswers]=useState<Answers>({}); const [tracking,setTracking]=useState<Record<string,string>>({}); const [sending,setSending]=useState(false); const [result,setResult]=useState<ResultState>(null); const [leadId,setLeadId]=useState<string|null>(null);
-  useEffect(()=>{const params=new URLSearchParams(window.location.search);const captured:Record<string,string>={};trackingKeys.forEach(k=>{const v=params.get(k);if(v)captured[k]=v});setTracking(captured)},[]);
+  const [started,setStarted]=useState(false); const [step,setStep]=useState(0); const [answers,setAnswers]=useState<Answers>({}); const [sending,setSending]=useState(false); const [result,setResult]=useState<ResultState>(null); const [leadId,setLeadId]=useState<string|null>(null); const submissionId=useRef<string|null>(null);
   const question=questions[step]; const progress=started?Math.round(((step+1)/questions.length)*100):0;
   const current=answers[question?.key]||"";
   const canContinue=useMemo(()=>{if(!question)return false;if(question.key==="whatsapp")return current.replace(/\D/g,"").length===11;if(question.key==="instagram")return /^@[A-Za-z0-9._]{1,30}$/.test(current);return current.trim().length>0},[question,current]);
@@ -37,7 +34,7 @@ export default function DiagnosticForm(){
   function next(){if(!canContinue)return;if(step<questions.length-1)setStep(s=>s+1);else submit(answers)}
   function back(){if(step>0)setStep(s=>s-1)}
   function choose(value:string){if(!question)return;const nextAnswers={...answers,[question.key]:value};setAnswers(nextAnswers);if(step<questions.length-1)setTimeout(()=>setStep(s=>s+1),120);else setTimeout(()=>submit(nextAnswers),120)}
-  async function submit(payload:Answers){if(sending)return;setSending(true);setResult(null);try{const response=await fetch("/api/aquisicao/clinicas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...payload,...tracking,origin_url:window.location.href})});if(!response.ok)throw new Error();const data=await response.json();setLeadId(data.id||null);window.fbq?.("track","Lead");if(data.qualified){track("QualifiedLead");setResult("qualified")}else setResult("unqualified")}catch{setResult("error")}finally{setSending(false)}}
+  async function submit(payload:Answers){if(sending)return;submissionId.current??=crypto.randomUUID();setSending(true);setResult(null);try{const response=await fetch("/api/aquisicao/clinicas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...payload,submission_id:submissionId.current,...captureTracking(),origin_url:window.location.href})});if(!response.ok)throw new Error();const data=await response.json();setLeadId(data.id||null);window.fbq?.("track","Lead");if(data.qualified){track("QualifiedLead");setResult("qualified")}else setResult("unqualified")}catch{setResult("error")}finally{setSending(false)}}
 
   if(result==="qualified"&&leadId)return <Scheduler leadId={leadId}/>;
   if(result==="unqualified")return <Result title="Obrigado pelas informações." text="Neste momento, a Estrutura de Crescimento Axven foi desenhada para operações em uma fase específica de maturidade. Suas informações poderão ser consideradas futuramente."/>;
