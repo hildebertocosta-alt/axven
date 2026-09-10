@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   createMetaOAuthState,
   getMetaOAuthRedirectUri,
+  isOfficialMetaOAuthHost,
   META_OAUTH_CALLBACK_PATH,
   META_OAUTH_COOKIE_DOMAIN,
   META_OAUTH_STATE_TTL_SECONDS,
@@ -46,6 +47,10 @@ test("callback consumido não pode ser reutilizado sem o cookie", () => {
 });
 
 test("redirect URI aceita apenas o callback HTTPS do domínio oficial", () => {
+  assert.equal(isOfficialMetaOAuthHost("axvendigital.com.br"), true);
+  assert.equal(isOfficialMetaOAuthHost("www.axvendigital.com.br"), true);
+  assert.equal(isOfficialMetaOAuthHost("axven.vercel.app"), false);
+  assert.equal(isOfficialMetaOAuthHost("preview.example"), false);
   assert.equal(getMetaOAuthRedirectUri("https://axvendigital.com.br/api/integracoes/meta/callback"), "https://axvendigital.com.br/api/integracoes/meta/callback");
   assert.equal(getMetaOAuthRedirectUri("https://www.axvendigital.com.br/api/integracoes/meta/callback"), "https://www.axvendigital.com.br/api/integracoes/meta/callback");
   assert.throws(() => getMetaOAuthRedirectUri("https://axven.vercel.app/api/integracoes/meta/callback"));

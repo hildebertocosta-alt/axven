@@ -7,6 +7,10 @@ export const META_OAUTH_CALLBACK_PATH = "/api/integracoes/meta/callback";
 
 const OFFICIAL_HOSTS = new Set(["axvendigital.com.br", "www.axvendigital.com.br"]);
 
+export function isOfficialMetaOAuthHost(hostname: string) {
+  return OFFICIAL_HOSTS.has(hostname.toLowerCase());
+}
+
 type StatePayload = { nonce: string; exp: number };
 
 function sign(encodedPayload: string, secret: string) {
@@ -44,7 +48,7 @@ export function validateMetaOAuthState(candidate: string | null, cookieValue: st
 export function getMetaOAuthRedirectUri(value: string | undefined) {
   if (!value) throw new Error("META_OAUTH_REDIRECT_URI ausente");
   const url = new URL(value);
-  if (url.protocol !== "https:" || !OFFICIAL_HOSTS.has(url.hostname) || url.pathname !== META_OAUTH_CALLBACK_PATH || url.search || url.hash) {
+  if (url.protocol !== "https:" || !isOfficialMetaOAuthHost(url.hostname) || url.pathname !== META_OAUTH_CALLBACK_PATH || url.search || url.hash) {
     throw new Error("META_OAUTH_REDIRECT_URI deve usar o callback oficial da Axven");
   }
   return url.toString();

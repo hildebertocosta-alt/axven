@@ -1,9 +1,12 @@
-import { NextResponse } from "next/server";
-import { createMetaOAuthState, getMetaOAuthRedirectUri, META_OAUTH_STATE_COOKIE, metaOAuthCookieOptions } from "@/app/lib/metaOAuth";
+import { NextRequest, NextResponse } from "next/server";
+import { createMetaOAuthState, getMetaOAuthRedirectUri, isOfficialMetaOAuthHost, META_OAUTH_STATE_COOKIE, metaOAuthCookieOptions } from "@/app/lib/metaOAuth";
 
 const GRAPH_VERSION = "v21.0";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!isOfficialMetaOAuthHost(req.nextUrl.hostname)) {
+    return NextResponse.redirect("https://www.axvendigital.com.br/api/integracoes/meta/iniciar");
+  }
   const appId = process.env.META_APP_ID;
   const appSecret = process.env.META_APP_SECRET;
   if (!appId || !appSecret || !process.env.META_OAUTH_REDIRECT_URI) {
