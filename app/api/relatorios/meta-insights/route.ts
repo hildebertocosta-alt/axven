@@ -12,10 +12,7 @@ const BASE_FIELDS = [
   "cpm",
   "frequency",
   "actions",
-  "action_values",
   "cost_per_action_type",
-  "purchase_roas",
-  "website_purchase_roas",
 ].join(",");
 
 const LEAD_ACTION_PRIORITY = [
