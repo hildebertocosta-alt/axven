@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { shouldTrackMetaSubmission } from "@/app/lib/metaLeadEvent";
 
 declare global { interface Window { fbq?: (...args: unknown[]) => void } }
 
@@ -34,7 +35,7 @@ export default function DiagnosticForm(){
   function next(){if(!canContinue)return;if(step<questions.length-1)setStep(s=>s+1);else submit(answers)}
   function back(){if(step>0)setStep(s=>s-1)}
   function choose(value:string){if(!question)return;const nextAnswers={...answers,[question.key]:value};setAnswers(nextAnswers);if(step<questions.length-1)setTimeout(()=>setStep(s=>s+1),120);else setTimeout(()=>submit(nextAnswers),120)}
-  async function submit(payload:Answers){if(sending)return;submissionId.current??=crypto.randomUUID();setSending(true);setResult(null);try{const response=await fetch("/api/aquisicao/clinicas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...payload,submission_id:submissionId.current,...captureTracking(),origin_url:window.location.href})});if(!response.ok)throw new Error();const data=await response.json();setLeadId(data.id||null);window.fbq?.("track","Lead");if(data.qualified){track("QualifiedLead");setResult("qualified")}else setResult("unqualified")}catch{setResult("error")}finally{setSending(false)}}
+  async function submit(payload:Answers){if(sending)return;submissionId.current??=crypto.randomUUID();setSending(true);setResult(null);try{const response=await fetch("/api/aquisicao/clinicas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...payload,submission_id:submissionId.current,...captureTracking(),origin_url:window.location.href})});if(!response.ok)throw new Error();const data=await response.json();setLeadId(data.id||null);if(shouldTrackMetaSubmission(data)){window.fbq?.("track","Lead",{},{eventID:data.meta_event_id});if(data.qualified)track("QualifiedLead")}if(data.qualified)setResult("qualified");else setResult("unqualified")}catch{setResult("error")}finally{setSending(false)}}
 
   if(result==="qualified"&&leadId)return <Scheduler leadId={leadId}/>;
   if(result==="unqualified")return <Result title="Obrigado pelas informações." text="Neste momento, a Estrutura de Crescimento Axven foi desenhada para operações em uma fase específica de maturidade. Suas informações poderão ser consideradas futuramente."/>;
