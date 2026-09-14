@@ -16,6 +16,15 @@ test("regra compartilhada exige antecedência mínima de 8 horas", () => {
   assert.equal(isAllowedAcquisitionSlot(zonedDate("2026", "09", "14", 17), now), true);
 });
 
+test("POST rejeita horário passado e slot que ficou inválido entre GET e clique", () => {
+  const loadedAt = new Date("2026-09-14T08:00:00Z");
+  const clickedAt = new Date("2026-09-14T12:00:01Z");
+  const slot = zonedDate("2026", "09", "14", 17);
+  assert.equal(isAllowedAcquisitionSlot(new Date("2026-09-14T07:00:00Z"), loadedAt), false);
+  assert.equal(isAllowedAcquisitionSlot(slot, loadedAt), true);
+  assert.equal(isAllowedAcquisitionSlot(slot, clickedAt), false);
+});
+
 test("GET omite slots abaixo de 8h, preserva os válidos e remove ocupados", () => {
   const now = new Date("2026-09-14T12:00:00Z");
   const valid = zonedDate("2026", "09", "14", 17).toISOString();
@@ -42,6 +51,16 @@ test("migration garante 8h, transação, conflito por intervalo e Outbox obrigat
   assert.match(sql, /lead_id = p_lead_id and status = 'agendado'/);
   assert.match(sql, /revoke all .* from public, anon, authenticated/i);
   assert.doesNotMatch(sql, /\b(delete|drop|truncate)\b/i);
+});
+
+test("falha de atualização do lead ou da Outbox aborta a mesma transação", async () => {
+  const sql = await readFile(new URL("../supabase/migrations/20260914100000_reserve_aquisicao_axven_appointment.sql", import.meta.url), "utf8");
+  const booking = sql.indexOf("insert into public.aquisicao_axven_agendamentos");
+  const lead = sql.indexOf("update public.aquisicao_axven_leads");
+  const outbox = sql.indexOf("insert into public.aquisicao_axven_whatsapp_outbox");
+  assert.ok(booking >= 0 && booking < lead && lead < outbox);
+  assert.match(sql, /if not found then[\s\S]*falha_atualizacao_lead/i);
+  assert.doesNotMatch(sql, /exception\s+when|begin\s*;[\s\S]*commit/i);
 });
 
 test("Agenda une aquisição e compromissos internos sem duplicação física", async () => {
