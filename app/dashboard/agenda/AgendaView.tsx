@@ -24,6 +24,10 @@ export type Compromisso = {
   lead_comercial_id: string | null;
   status: string;
   leadNome: string | null;
+  origem: "interno" | "aquisicao_axven";
+  acquisitionLeadId: string | null;
+  acquisitionBookingId: string | null;
+  whatsappStatus: "pendente" | "processando" | "enviado" | "falhou" | "cancelado" | null;
 };
 
 function saoPauloDateKey(date: Date) {
@@ -113,7 +117,10 @@ export function AgendaView({ initialCompromissos }: { initialCompromissos: Compr
           backgroundColor: cfg.bg,
           borderColor: cfg.border,
           textColor: cfg.text,
-          extendedProps: { tipo: item.tipo, status: item.status },
+          editable: item.origem === "interno",
+          startEditable: item.origem === "interno",
+          durationEditable: item.origem === "interno",
+          extendedProps: { tipo: item.tipo, status: item.status, origem: item.origem, whatsappStatus: item.whatsappStatus },
         };
       }),
     [compromissos],
@@ -162,7 +169,7 @@ export function AgendaView({ initialCompromissos }: { initialCompromissos: Compr
 
   const handleEventClick = (info: EventClickArg) => {
     const item = compromissos.find((c) => c.id === info.event.id);
-    if (item) startEdit(item);
+    if (item?.origem === "interno") startEdit(item);
   };
 
   const persistReschedule = async (id: string, dataHoraIso: string, duracaoMinutos: number | null) => {
@@ -284,6 +291,11 @@ export function AgendaView({ initialCompromissos }: { initialCompromissos: Compr
     <div className="flex w-full flex-col gap-0.5 overflow-hidden px-1 py-0.5 text-[11px] leading-tight">
       {arg.timeText ? <span className="font-semibold opacity-90">{arg.timeText}</span> : null}
       <span className="truncate font-medium">{arg.event.title}</span>
+      {arg.event.extendedProps.origem === "aquisicao_axven" ? (
+        <span className="truncate text-[9px] opacity-80">
+          Aquisição Axven · WhatsApp {arg.event.extendedProps.whatsappStatus ?? "sem Outbox"}
+        </span>
+      ) : null}
     </div>
   );
 
