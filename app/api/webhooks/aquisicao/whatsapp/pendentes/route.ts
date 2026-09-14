@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { validateWebhookSecret } from "@/app/lib/webhookAuth";
+import { failureTransition } from "@/app/lib/acquisitionWhatsappOutbox";
 
 const TZ = "America/Sao_Paulo";
 
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
   const unauthorized = validateWebhookSecret(req);
   if (unauthorized) return unauthorized;
 
-  const { data: claimed, error: claimError } = await supabaseAdmin.rpc("claim_aquisicao_axven_whatsapp_outbox");
+  const { data: claimed, error: claimError } = await supabaseAdmin.rpc("claim_aquisicao_axven_whatsapp_outbox_v1");
   if (claimError) {
     console.error("[aquisicao-whatsapp] claim error", claimError.message);
     return NextResponse.json({ error: "falha_ao_buscar_pendente" }, { status: 500 });
@@ -37,7 +38,9 @@ export async function GET(req: NextRequest) {
     .single();
 
   if (leadError || bookingError || !lead?.whatsapp || !booking || booking.status !== "agendado") {
-    await supabaseAdmin.from("aquisicao_axven_whatsapp_outbox").update({ status: "falhou", ultimo_erro: "dados_do_lead_ou_agendamento_invalidos", disponivel_em: new Date(Date.now() + 5 * 60 * 1000).toISOString(), atualizado_em: new Date().toISOString() }).eq("id", item.id);
+    const now = new Date();
+    const transition = failureTransition(Number(item.tentativas ?? 0), now);
+    await supabaseAdmin.from("aquisicao_axven_whatsapp_outbox").update({ status: transition.status, ultimo_erro: "dados_do_lead_ou_agendamento_invalidos", disponivel_em: transition.disponivel_em, atualizado_em: now.toISOString() }).eq("id", item.id).eq("status", "processando");
     return NextResponse.json({ error: "dados_invalidos" }, { status: 409 });
   }
 
