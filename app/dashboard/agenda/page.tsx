@@ -11,11 +11,43 @@ function inicioDeHoje() {
 }
 
 type CompromissoRow = { id:string; titulo:string; tipo:Compromisso["tipo"]; data_hora:string; duracao_minutos:number|null; lead_comercial_id:string|null; status:string; leads_comerciais:{nome:string}|{nome:string}[]|null };
+type AquisicaoRow = {
+  id: string;
+  lead_id: string;
+  inicio: string;
+  fim: string;
+  status: string;
+  aquisicao_axven_leads: { nome: string } | { nome: string }[] | null;
+  aquisicao_axven_whatsapp_outbox: { status: Compromisso["whatsappStatus"] } | { status: Compromisso["whatsappStatus"] }[] | null;
+};
 
 export default async function AgendaPage() {
-  const { data } = await supabaseAdmin.from("compromissos").select("id, titulo, tipo, data_hora, duracao_minutos, lead_comercial_id, status, leads_comerciais(nome)").gte("data_hora", inicioDeHoje()).order("data_hora", { ascending: true });
+  const [{ data }, { data: acquisitionData }] = await Promise.all([
+    supabaseAdmin.from("compromissos").select("id, titulo, tipo, data_hora, duracao_minutos, lead_comercial_id, status, leads_comerciais(nome)").gte("data_hora", inicioDeHoje()).order("data_hora", { ascending: true }),
+    supabaseAdmin.from("aquisicao_axven_agendamentos").select("id, lead_id, inicio, fim, status, aquisicao_axven_leads(nome), aquisicao_axven_whatsapp_outbox(status)").neq("status", "cancelado").order("inicio", { ascending: true }),
+  ]);
   const rows = (data ?? []) as unknown as CompromissoRow[];
-  const compromissos: Compromisso[] = rows.map((item) => ({ id:item.id, titulo:item.titulo, tipo:item.tipo, data_hora:item.data_hora, duracao_minutos:item.duracao_minutos, lead_comercial_id:item.lead_comercial_id, status:item.status, leadNome:Array.isArray(item.leads_comerciais) ? item.leads_comerciais[0]?.nome ?? null : item.leads_comerciais?.nome ?? null }));
+  const compromissosInternos: Compromisso[] = rows.map((item) => ({ id:item.id, titulo:item.titulo, tipo:item.tipo, data_hora:item.data_hora, duracao_minutos:item.duracao_minutos, lead_comercial_id:item.lead_comercial_id, status:item.status, leadNome:Array.isArray(item.leads_comerciais) ? item.leads_comerciais[0]?.nome ?? null : item.leads_comerciais?.nome ?? null, origem:"interno", acquisitionLeadId:null, acquisitionBookingId:null, whatsappStatus:null }));
+  const aquisicaoRows = (acquisitionData ?? []) as unknown as AquisicaoRow[];
+  const compromissosAquisicao: Compromisso[] = aquisicaoRows.map((item) => {
+    const lead = Array.isArray(item.aquisicao_axven_leads) ? item.aquisicao_axven_leads[0] : item.aquisicao_axven_leads;
+    const outbox = Array.isArray(item.aquisicao_axven_whatsapp_outbox) ? item.aquisicao_axven_whatsapp_outbox[0] : item.aquisicao_axven_whatsapp_outbox;
+    return {
+      id: `aquisicao:${item.id}`,
+      titulo: "Análise de Crescimento Axven",
+      tipo: "call_prospeccao",
+      data_hora: item.inicio,
+      duracao_minutos: Math.round((new Date(item.fim).getTime() - new Date(item.inicio).getTime()) / 60000),
+      lead_comercial_id: null,
+      status: item.status,
+      leadNome: lead?.nome ?? null,
+      origem: "aquisicao_axven",
+      acquisitionLeadId: item.lead_id,
+      acquisitionBookingId: item.id,
+      whatsappStatus: outbox?.status ?? null,
+    };
+  });
+  const compromissos = [...compromissosInternos, ...compromissosAquisicao].sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime());
   const hoje = compromissos.filter((item) => new Date(item.data_hora).toLocaleDateString("en-CA", { timeZone:"America/Sao_Paulo" }) === new Date().toLocaleDateString("en-CA", { timeZone:"America/Sao_Paulo" })).length;
   const calls = compromissos.filter((item) => item.tipo === "call_prospeccao").length;
   const reunioes = compromissos.filter((item) => item.tipo === "reuniao_cliente").length;
