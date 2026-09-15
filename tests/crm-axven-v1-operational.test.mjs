@@ -54,6 +54,20 @@ test("pipeline inclui detalhes, timeline, busca e filtros", () => {
   assert.match(board, /Todas as campanhas/);
 });
 
+test("drag-and-drop usa uma unica instancia sortable e a mesma mutacao segura do seletor", () => {
+  assert.match(board, /function SortableLeadCard/);
+  assert.match(board, /setActivatorNodeRef/);
+  assert.match(board, /touch-none/);
+  assert.match(board, /function dragEnd[\s\S]*void request\(lead,target\)/);
+  assert.match(board, /if\(etapa!==lead\.etapa\)onMove\(lead,etapa\)/);
+
+  const overlay = board.slice(board.indexOf("function LeadCardOverlay"), board.indexOf("function KanbanColumn"));
+  assert.doesNotMatch(overlay, /useSortable/);
+  assert.match(overlay, /LeadCardContent/);
+
+  assert.match(board, /if\(etapa==="fechado"\|\|etapa==="nao_fechou"\|\|etapa==="desqualificado"\)\{setPending/);
+});
+
 test("escopo não toca Outbox nem CRMs paralelos", () => {
   for (const source of [migration, route]) {
     assert.doesNotMatch(source, /aquisicao_axven_whatsapp_outbox/);
