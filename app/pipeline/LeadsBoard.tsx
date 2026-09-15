@@ -1,9 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
-import { DndContext, DragOverlay, PointerSensor, closestCorners, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { useMemo, useState } from "react";
 
 export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado" | "nao_fechou" | "desqualificado";
 export type LeadEvent = { id:string; lead_id:string; tipo_evento:string; etapa_anterior:Etapa|null; etapa_nova:Etapa|null; motivo:string|null; metadata:Record<string,unknown>; criado_em:string };
@@ -29,34 +26,23 @@ const labelEtapa=(value:Etapa|null)=>COLUMNS.find((item)=>item.key===value)?.lab
 const fmt=(value?:string|null)=>value?new Date(value).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—";
 const dinheiro=(value?:number|null,moeda="BRL")=>value==null?"—":new Intl.NumberFormat("pt-BR",{style:"currency",currency:moeda||"BRL"}).format(value);
 
-function LeadCardContent({lead,onMove,onOpen,dragHandle}:{lead:LeadRow;onMove?:(lead:LeadRow,etapa:Etapa)=>void;onOpen?:()=>void;dragHandle?:ReactNode}){
+function LeadCard({lead,onMove,onOpen}:{lead:LeadRow;onMove:(lead:LeadRow,etapa:Etapa)=>void;onOpen:()=>void}){
   return <div role="button" tabIndex={0} onKeyDown={(event)=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();onOpen?.()}}} onClick={onOpen} className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 text-sm shadow-sm transition hover:border-white/20 focus:outline-none focus:ring-2 focus:ring-[#ff6846]/40">
-    <div className="flex items-start justify-between gap-2"><div><p className="font-medium text-white">{lead.nome||"Sem nome"}</p>{lead.clinica?<p className="mt-1 text-xs text-zinc-400">{lead.clinica}</p>:null}</div><div className="flex items-center gap-2">{lead.qualificado?<span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] text-sky-200">Qualificado</span>:null}{dragHandle}</div></div>
+    <div className="flex items-start justify-between gap-2"><div><p className="font-medium text-white">{lead.nome||"Sem nome"}</p>{lead.clinica?<p className="mt-1 text-xs text-zinc-400">{lead.clinica}</p>:null}</div>{lead.qualificado?<span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] text-sky-200">Qualificado</span>:null}</div>
     <p className="mt-2 text-xs text-zinc-400">{lead.whatsapp}</p>
     <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-zinc-400">{lead.como_chegou?<span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{lead.como_chegou}</span>:null}{lead.utm_campaign?<span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">{lead.utm_campaign}</span>:null}</div>
     {lead.agendado_em?<p className="mt-3 text-[11px] text-violet-200">Agenda: {fmt(lead.agendado_em)}</p>:null}
     {lead.valor_venda!=null?<p className="mt-2 text-xs font-medium text-emerald-200">{dinheiro(lead.valor_venda,lead.moeda||"BRL")}</p>:null}
     <p className="mt-3 text-[10px] text-zinc-600">Atualizado {fmt(lead.atualizado_em)}</p>
-    {onMove?<select value={lead.etapa} onPointerDown={(e)=>e.stopPropagation()} onClick={(e)=>e.stopPropagation()} onChange={(e)=>{e.stopPropagation();const etapa=e.target.value as Etapa;if(etapa!==lead.etapa)onMove(lead,etapa)}} className="mt-4 w-full rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-xs text-zinc-200">
+    <select aria-label={`Alterar etapa de ${lead.nome||"lead"}`} value={lead.etapa} onClick={(e)=>e.stopPropagation()} onChange={(e)=>{e.stopPropagation();const etapa=e.target.value as Etapa;if(etapa!==lead.etapa)onMove(lead,etapa)}} className="mt-4 w-full rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-xs text-zinc-200">
       {COLUMNS.map((column)=><option key={column.key} value={column.key}>{column.label}</option>)}
-    </select>:null}
+    </select>
   </div>;
 }
 
-function SortableLeadCard({lead,onMove,onOpen}:{lead:LeadRow;onMove:(lead:LeadRow,etapa:Etapa)=>void;onOpen:()=>void}){
-  const {attributes,listeners,setActivatorNodeRef,setNodeRef,transform,transition,isDragging}=useSortable({id:lead.id});
-  const handle=<button ref={setActivatorNodeRef} type="button" aria-label={`Arrastar ${lead.nome||"lead"}`} {...attributes} {...listeners} onClick={(event)=>event.stopPropagation()} className="touch-none cursor-grab rounded-lg border border-white/10 px-2 py-1 text-xs text-zinc-400 hover:text-white active:cursor-grabbing">⠿</button>;
-  return <div ref={setNodeRef} style={{transform:CSS.Transform.toString(transform),transition,opacity:isDragging?.35:1}}><LeadCardContent lead={lead} onMove={onMove} onOpen={onOpen} dragHandle={handle}/></div>;
-}
-
-function LeadCardOverlay({lead}:{lead:LeadRow}){
-  return <div className="rotate-2 shadow-xl"><LeadCardContent lead={lead}/></div>;
-}
-
 function KanbanColumn({column,leads,onMove,onOpen}:{column:Column;leads:LeadRow[];onMove:(lead:LeadRow,etapa:Etapa)=>void;onOpen:(lead:LeadRow)=>void}){
-  const {setNodeRef,isOver}=useDroppable({id:column.key});
   return <div className="flex min-w-[280px] flex-1 flex-col"><div className="mb-3 flex items-center justify-between px-1"><span className="text-xs font-medium text-zinc-300">{column.label}</span><span className="text-xs text-zinc-500">{leads.length}</span></div>
-    <div ref={setNodeRef} className={`flex min-h-[220px] flex-1 flex-col gap-3 rounded-3xl border p-3 ${column.accent} ${isOver?"ring-2 ring-[#D85A30]/40":""}`}><SortableContext items={leads.map((lead)=>lead.id)} strategy={verticalListSortingStrategy}>{leads.map((lead)=><SortableLeadCard key={lead.id} lead={lead} onMove={onMove} onOpen={()=>onOpen(lead)}/>)}</SortableContext>{!leads.length?<p className="py-6 text-center text-xs text-zinc-500">Nenhum lead</p>:null}</div>
+    <div className={`flex min-h-[220px] flex-1 flex-col gap-3 rounded-3xl border p-3 ${column.accent}`}>{leads.map((lead)=><LeadCard key={lead.id} lead={lead} onMove={onMove} onOpen={()=>onOpen(lead)}/>)}{!leads.length?<p className="py-6 text-center text-xs text-zinc-500">Nenhum lead</p>:null}</div>
   </div>;
 }
 
@@ -88,9 +74,8 @@ function ClosingModal({lead,onCancel,onSave}:{lead:LeadRow;onCancel:()=>void;onS
 }
 
 export function LeadsBoard({initialLeads}:{initialLeads:LeadRow[]}){
-  const [leads,setLeads]=useState(initialLeads);const [active,setActive]=useState<LeadRow|null>(null);const [detailId,setDetailId]=useState<string|null>(null);const [pending,setPending]=useState<{lead:LeadRow;etapa:Etapa}|null>(null);const [error,setError]=useState<string|null>(null);
+  const [leads,setLeads]=useState(initialLeads);const [detailId,setDetailId]=useState<string|null>(null);const [pending,setPending]=useState<{lead:LeadRow;etapa:Etapa}|null>(null);const [error,setError]=useState<string|null>(null);
   const [search,setSearch]=useState("");const [stage,setStage]=useState("todas");const [origin,setOrigin]=useState("todas");const [campaign,setCampaign]=useState("todas");
-  const sensors=useSensors(useSensor(PointerSensor,{activationConstraint:{distance:6}}));
   const origins=useMemo(()=>[...new Set(leads.map((lead)=>lead.como_chegou).filter(Boolean) as string[])].sort(),[leads]);
   const campaigns=useMemo(()=>[...new Set(leads.map((lead)=>lead.utm_campaign).filter(Boolean) as string[])].sort(),[leads]);
   const visible=useMemo(()=>leads.filter((lead)=>{const term=search.trim().toLowerCase();return (!term||lead.nome?.toLowerCase().includes(term)||lead.whatsapp.includes(term))&&(stage==="todas"||lead.etapa===stage)&&(origin==="todas"||lead.como_chegou===origin)&&(campaign==="todas"||lead.utm_campaign===campaign)}),[leads,search,stage,origin,campaign]);
@@ -102,14 +87,13 @@ export function LeadsBoard({initialLeads}:{initialLeads:LeadRow[]}){
     setLeads((current)=>current.map((item)=>item.id===lead.id?{...item,...payload.lead,events:payload.event?[payload.event,...item.events]:item.events}:item));return true;
   }
   async function request(lead:LeadRow,etapa:Etapa){if(etapa===lead.etapa)return;if(etapa==="fechado"||etapa==="nao_fechou"||etapa==="desqualificado"){setPending({lead,etapa});return}await mutate(lead,etapa)}
-  function dragEnd(event:DragEndEvent){setActive(null);if(!event.over)return;const lead=leads.find((item)=>item.id===event.active.id);const target=COLUMNS.find((item)=>item.key===event.over?.id)?.key??leads.find((item)=>item.id===event.over?.id)?.etapa;if(lead&&target)void request(lead,target)}
 
   return <div>
     <div className="mb-5"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm text-zinc-400">Leads reais da aquisição Axven.</p><p className="mt-1 text-xs text-zinc-600">Clique no card para abrir diagnóstico e timeline.</p></div><span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300">{visible.length} leads</span></div>
       <div className="mt-4 grid gap-2 md:grid-cols-4"><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar nome ou WhatsApp" className="rounded-xl border border-white/10 bg-zinc-950 px-3 py-2.5 text-sm text-white"/><select value={stage} onChange={(e)=>setStage(e.target.value)} className="rounded-xl border border-white/10 bg-zinc-950 px-3 py-2.5 text-sm text-white"><option value="todas">Todas as etapas</option>{COLUMNS.map((item)=><option key={item.key} value={item.key}>{item.label}</option>)}</select><select value={origin} onChange={(e)=>setOrigin(e.target.value)} className="rounded-xl border border-white/10 bg-zinc-950 px-3 py-2.5 text-sm text-white"><option value="todas">Todas as origens</option>{origins.map((item)=><option key={item}>{item}</option>)}</select><select value={campaign} onChange={(e)=>setCampaign(e.target.value)} className="rounded-xl border border-white/10 bg-zinc-950 px-3 py-2.5 text-sm text-white"><option value="todas">Todas as campanhas</option>{campaigns.map((item)=><option key={item}>{item}</option>)}</select></div>
     </div>
     {error?<div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{error}</div>:null}
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={(e:DragStartEvent)=>setActive(leads.find((item)=>item.id===e.active.id)??null)} onDragCancel={()=>setActive(null)} onDragEnd={dragEnd}><div className="flex gap-4 overflow-x-auto pb-5">{COLUMNS.map((column)=><KanbanColumn key={column.key} column={column} leads={visible.filter((lead)=>lead.etapa===column.key)} onMove={request} onOpen={(lead)=>setDetailId(lead.id)}/>)}</div><DragOverlay>{active?<div className="w-[280px]"><LeadCardOverlay lead={active}/></div>:null}</DragOverlay></DndContext>
+    <div className="flex gap-4 overflow-x-auto pb-5">{COLUMNS.map((column)=><KanbanColumn key={column.key} column={column} leads={visible.filter((lead)=>lead.etapa===column.key)} onMove={request} onOpen={(lead)=>setDetailId(lead.id)}/>)}</div>
     {detail?<DetailDrawer lead={detail} onClose={()=>setDetailId(null)}/>:null}
     {pending?.etapa==="fechado"?<ClosingModal lead={pending.lead} onCancel={()=>setPending(null)} onSave={async(extra)=>{if(await mutate(pending.lead,"fechado",extra))setPending(null)}}/>:null}
     {pending&&pending.etapa!=="fechado"?<ReasonModal lead={pending.lead} etapa={pending.etapa} onCancel={()=>setPending(null)} onSave={async(motivo)=>{if(await mutate(pending.lead,pending.etapa,{motivo}))setPending(null)}}/>:null}
