@@ -52,3 +52,15 @@ está `running`. Execuções abandonadas há mais de duas horas são encerradas 
 `failed` antes da aquisição de uma nova trava. Resultados e falhas sanitizadas são
 registrados em `meta_ads_sync_runs` e `meta_ads_sync_run_items`; nenhuma credencial é
 persistida nessas tabelas.
+
+## CRM Axven V1
+
+O CRM interno em `/pipeline` usa exclusivamente `aquisicao_axven_leads`. Mudanças de
+etapa passam pela RPC `atualizar_etapa_aquisicao_axven_lead_v1`, que atualiza o lead e
+grava a timeline na mesma transação.
+
+Os campos `qualificado`, `agendado_em`, `venda_em`, `valor_venda` e `moeda` representam
+fatos já ocorridos e não são apagados quando o card muda para outra etapa. A etapa
+`agendado` exige um registro ativo em `aquisicao_axven_agendamentos`; `fechado` exige
+valor, moeda e data; `nao_fechou` e `desqualificado` exigem motivo. A sessão interna
+atual não identifica nominalmente o operador, portanto a V1 não atribui autoria.
