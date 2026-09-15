@@ -54,11 +54,21 @@ test("pipeline inclui detalhes, timeline, busca e filtros", () => {
   assert.match(board, /Todas as campanhas/);
 });
 
-test("select e o unico mecanismo visual de mudanca de etapa", () => {
-  assert.doesNotMatch(board, /DndContext|DragOverlay|useSortable|useDroppable|dragEnd/);
+test("drag usa o corpo do card e preserva o select como alternativa", () => {
+  assert.match(board, /function SortableLeadCard/);
+  assert.match(board, /useSortable\(\{id:lead\.id\}\)/);
+  assert.match(board, /select-none touch-none/);
+  assert.match(board, /isDragging\?"cursor-grabbing":"cursor-grab"/);
+  assert.match(board, /activationConstraint:\{distance:8\}/);
+  assert.match(board, /function dragEnd[\s\S]*void request\(lead,target\)/);
+  assert.match(board, /draggedLeadId\.current===lead\.id/);
   assert.match(board, /aria-label={`Alterar etapa de \$\{lead\.nome\|\|"lead"\}`}/);
+  assert.match(board, /onPointerDown=\{\(e\)=>e\.stopPropagation\(\)\}/);
   assert.match(board, /if\(etapa!==lead\.etapa\)onMove\(lead,etapa\)/);
   assert.match(board, /if\(etapa==="fechado"\|\|etapa==="nao_fechou"\|\|etapa==="desqualificado"\)\{setPending/);
+
+  const overlay = board.slice(board.indexOf("function LeadCardOverlay"), board.indexOf("function KanbanColumn"));
+  assert.doesNotMatch(overlay, /useSortable/);
 });
 
 test("escopo não toca Outbox nem CRMs paralelos", () => {
