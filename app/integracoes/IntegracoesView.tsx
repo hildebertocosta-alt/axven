@@ -16,6 +16,20 @@ export type ClienteMetaRow = {
 
 type ContaMeta = { account_id: string; name: string; business_name?: string };
 
+type NewClientForm = {
+  nome: string;
+  meta_account_id: string;
+  tipo_campanha: "lead" | "ecommerce" | "visualizacao";
+  status_pagamento: "em_dia" | "pago";
+};
+
+const EMPTY_CLIENT: NewClientForm = {
+  nome: "",
+  meta_account_id: "",
+  tipo_campanha: "lead",
+  status_pagamento: "em_dia",
+};
+
 const ERRO_MENSAGENS: Record<string, string> = {
   codigo_ausente: "A Meta não retornou o código de autorização. Tenta conectar de novo.",
   state_invalido: "A verificação de segurança do login falhou (state inválido). Tenta conectar de novo.",
@@ -53,6 +67,10 @@ export function IntegracoesView({
     Object.fromEntries(clientesIniciais.map((c) => [c.id, c.meta_account_id ?? ""])),
   );
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClient, setNewClient] = useState<NewClientForm>(EMPTY_CLIENT);
+  const [creatingClient, setCreatingClient] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!conexaoValida) return;
@@ -75,6 +93,32 @@ export function IntegracoesView({
       setClientes((prev) => prev.map((c) => (c.id === clienteId ? { ...c, meta_account_id: payload.cliente.meta_account_id } : c)));
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const criarCliente = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCreatingClient(true);
+    setCreateError(null);
+    try {
+      const response = await fetch("/api/clientes/criar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newClient),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        setCreateError(payload?.error ?? "Não foi possível criar o cliente.");
+        return;
+      }
+
+      const created = payload.cliente as ClienteMetaRow;
+      setClientes((current) => [...current, created].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
+      setSelecoes((current) => ({ ...current, [created.id]: created.meta_account_id ?? "" }));
+      setNewClient(EMPTY_CLIENT);
+      setShowNewClient(false);
+    } finally {
+      setCreatingClient(false);
     }
   };
 
@@ -120,7 +164,8 @@ export function IntegracoesView({
       </div>
 
       <div className="rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
-        <div>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
           <h3 className="text-lg font-semibold text-white">Conta de anúncio por cliente</h3>
           <p className="mt-1 text-sm text-zinc-400">
             {conexao
@@ -128,7 +173,16 @@ export function IntegracoesView({
                 ? "Carregando contas de anúncio disponíveis..."
                 : `${contas.length} conta(s) de anúncio encontradas na conexão atual.`
               : "Conecte a Meta acima pra escolher as contas de anúncio de cada cliente."}
-          </p>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setCreateError(null); setShowNewClient(true); }}
+            disabled={!conexaoValida || loadingContas}
+            className="rounded-xl border border-[#D85A30]/40 bg-[#D85A30]/10 px-4 py-2 text-sm font-semibold text-[#f0a480] transition hover:bg-[#D85A30]/20 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Adicionar cliente
+          </button>
         </div>
 
         <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10">
@@ -181,6 +235,61 @@ export function IntegracoesView({
           </table>
         </div>
       </div>
+
+      {showNewClient ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 px-4" role="dialog" aria-modal="true" aria-labelledby="novo-cliente-title">
+          <form onSubmit={criarCliente} className="w-full max-w-lg rounded-3xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 id="novo-cliente-title" className="text-xl font-semibold text-white">Adicionar cliente</h3>
+                <p className="mt-1 text-sm text-zinc-400">Crie o cliente já vinculado a uma conta Meta acessível.</p>
+              </div>
+              <button type="button" onClick={() => setShowNewClient(false)} className="text-sm text-zinc-500 hover:text-white">Fechar</button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <label className="block text-sm text-zinc-300">
+                Nome do cliente
+                <input required maxLength={120} value={newClient.nome} onChange={(event) => setNewClient((current) => ({ ...current, nome: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-white outline-none focus:border-[#D85A30]/50" />
+              </label>
+              <label className="block text-sm text-zinc-300">
+                Conta de anúncio Meta
+                <select required value={newClient.meta_account_id} onChange={(event) => setNewClient((current) => ({ ...current, meta_account_id: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-white/10 bg-zinc-900 px-3 py-2.5 text-white outline-none focus:border-[#D85A30]/50">
+                  <option value="">Selecione uma conta</option>
+                  {contas.map((conta) => (
+                    <option key={conta.account_id} value={conta.account_id}>
+                      {conta.name}{conta.business_name ? ` · ${conta.business_name}` : ""} · ID {conta.account_id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm text-zinc-300">
+                  Tipo de campanha
+                  <select value={newClient.tipo_campanha} onChange={(event) => setNewClient((current) => ({ ...current, tipo_campanha: event.target.value as NewClientForm["tipo_campanha"] }))} className="mt-1.5 w-full rounded-xl border border-white/10 bg-zinc-900 px-3 py-2.5 text-white outline-none">
+                    <option value="lead">Leads</option>
+                    <option value="ecommerce">E-commerce</option>
+                    <option value="visualizacao">Visualização</option>
+                  </select>
+                </label>
+                <label className="block text-sm text-zinc-300">
+                  Status
+                  <select value={newClient.status_pagamento} onChange={(event) => setNewClient((current) => ({ ...current, status_pagamento: event.target.value as NewClientForm["status_pagamento"] }))} className="mt-1.5 w-full rounded-xl border border-white/10 bg-zinc-900 px-3 py-2.5 text-white outline-none">
+                    <option value="em_dia">Ativo · Em dia</option>
+                    <option value="pago">Ativo · Pago</option>
+                  </select>
+                </label>
+              </div>
+              {createError ? <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{createError}</p> : null}
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button type="button" onClick={() => setShowNewClient(false)} className="flex-1 rounded-xl border border-white/10 px-4 py-2.5 text-sm text-zinc-300">Cancelar</button>
+              <button disabled={creatingClient} className="flex-1 rounded-xl bg-[#D85A30] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{creatingClient ? "Criando..." : "Criar cliente"}</button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }
