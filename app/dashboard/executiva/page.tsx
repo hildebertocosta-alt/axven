@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { AppShell } from "../../components/dashboard/AppShell";
 import { supabaseAdmin } from "../../lib/supabaseAdmin";
+import { garantirCobrancasDoMes } from "../../lib/financeiroAutoGen";
 import { filterAxvenByAttribution, filterCrmByCampaignName, safeRatio, summarizeAxvenCrm, summarizeCrm, summarizeMeta, type AxvenBookingRow, type AxvenLeadRow, type AxvenTimelineRow, type CrmLeadRow, type MetaInsightRow } from "./dashboardData";
+import { classifyClientHealth, sortByHealthSeverity, type ClientHealth, type CobrancaStatus, type SyncStatus } from "./clientHealth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 const AXVEN_CLIENT_ID = "48293810-59a2-46ef-a992-772c87d12475";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-type Client = { id:string; nome:string; status_pagamento:string|null };
+type Client = { id:string; nome:string; status_pagamento:string|null; meta_account_id?:string|null; data_fim_contrato?:string|null };
 type MetricData = { label:string; value:string; help:string };
 const first=(v:string|string[]|undefined)=>Array.isArray(v)?v[0]:v;
 const isoDate=(d:Date)=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo"}).format(d);
@@ -24,12 +26,71 @@ export default async function DashboardExecutivaPage({searchParams}:{searchParam
   const start=validDate(first(params.inicio))??`${today.slice(0,7)}-01`;
   const requestedEnd=validDate(first(params.fim))??today;
   const end=requestedEnd>=start?requestedEnd:start;
-  const {data:clientsData,error:clientsError}=await supabaseAdmin.from("clientes").select("id,nome,status_pagamento").order("nome");
+  const {data:clientsData,error:clientsError}=await supabaseAdmin.from("clientes").select("id,nome,status_pagamento,meta_account_id,data_fim_contrato").order("nome");
   if(clientsError) throw new Error("Não foi possível carregar os clientes.");
   const clients=(clientsData??[]) as Client[];
   const requestedClient=first(params.cliente)??"all";
   const selectedClient=requestedClient==="all"||clients.some(c=>c.id===requestedClient)?requestedClient:"all";
   const isAxven=selectedClient===AXVEN_CLIENT_ID;
+
+  const diaHoje=Number(new Intl.DateTimeFormat("en-US",{timeZone:"America/Sao_Paulo",day:"2-digit"}).format(new Date()));
+  const todayAtSP=new Date(`${today}T00:00:00-03:00`);
+  const isoOffset=(days:number)=>isoDate(new Date(todayAtSP.getTime()-days*86400000));
+  const ultimos7Inicio=isoOffset(6);
+  const anteriores7Inicio=isoOffset(13);
+  const anteriores7Fim=isoOffset(7);
+  const currentMonth=today.slice(0,7);
+  await garantirCobrancasDoMes(currentMonth);
+  const axvenClient=clients.find(c=>c.id===AXVEN_CLIENT_ID);
+  const [
+    {data:financeiroMesData,error:financeiroMesError},
+    {data:healthMetaData,error:healthMetaError},
+    {data:syncItemsData,error:syncItemsError},
+    {data:publicLeadsRecentData,error:publicLeadsRecentError},
+    axvenLeadsRecent,
+  ]=await Promise.all([
+    supabaseAdmin.from("financeiro").select("cliente_id,status,dia_vencimento").eq("mes_referencia",currentMonth),
+    supabaseAdmin.from("meta_ads_insights_daily").select("cliente_id,metric_date,spend,leads,lead_action_type").gte("metric_date",anteriores7Inicio).lte("metric_date",today),
+    supabaseAdmin.from("meta_ads_sync_run_items").select("cliente_id,status,started_at").gte("started_at",new Date(todayAtSP.getTime()-3*86400000).toISOString()).order("started_at",{ascending:false}),
+    supabaseAdmin.from("leads").select("cliente_id,criado_em").gte("criado_em",`${ultimos7Inicio}T00:00:00-03:00`),
+    axvenClient?supabaseAdmin.from("aquisicao_axven_leads").select("id,criado_em").gte("criado_em",`${ultimos7Inicio}T00:00:00-03:00`):Promise.resolve({data:[] as {id:string;criado_em:string}[],error:null}),
+  ]);
+  if(financeiroMesError||healthMetaError||syncItemsError||publicLeadsRecentError||axvenLeadsRecent.error) throw new Error("Não foi possível carregar a saúde dos clientes.");
+
+  const financeiroPorCliente=new Map((financeiroMesData??[]).map(f=>[f.cliente_id,f]));
+  const syncPorCliente=new Map<string,{status:string}>();
+  for(const item of (syncItemsData??[])) if(!syncPorCliente.has(item.cliente_id)) syncPorCliente.set(item.cliente_id,item);
+
+  const gastoLeadsPorCliente=new Map<string,{u7:{gasto:number;leads:number};a7:{gasto:number;leads:number}}>();
+  for(const row of (healthMetaData??[])){
+    const bucket=gastoLeadsPorCliente.get(row.cliente_id)??{u7:{gasto:0,leads:0},a7:{gasto:0,leads:0}};
+    const gasto=Number(row.spend??0);
+    const leadsCount=row.lead_action_type==="lead"?Number(row.leads??0):0;
+    if(row.metric_date>=ultimos7Inicio){bucket.u7.gasto+=gasto;bucket.u7.leads+=leadsCount;}
+    else if(row.metric_date>=anteriores7Inicio&&row.metric_date<=anteriores7Fim){bucket.a7.gasto+=gasto;bucket.a7.leads+=leadsCount;}
+    gastoLeadsPorCliente.set(row.cliente_id,bucket);
+  }
+
+  const crmLeadsRecentesPorCliente=new Map<string,number>();
+  for(const row of (publicLeadsRecentData??[])) crmLeadsRecentesPorCliente.set(row.cliente_id,(crmLeadsRecentesPorCliente.get(row.cliente_id)??0)+1);
+  if(axvenClient) crmLeadsRecentesPorCliente.set(axvenClient.id,(axvenLeadsRecent.data??[]).length);
+
+  const saudePorCliente:ClientHealth[]=sortByHealthSeverity(clients.filter(c=>c.status_pagamento!=="cancelado").map(c=>{
+    const cobrancaRow=financeiroPorCliente.get(c.id);
+    const syncRow=syncPorCliente.get(c.id);
+    const temContaMeta=Boolean(c.meta_account_id);
+    const sincronizacao:SyncStatus=!temContaMeta?"ok":syncRow?(syncRow.status==="failed"?"falhou":"ok"):"sem_registro";
+    const diasParaFimContrato=c.data_fim_contrato?Math.round((new Date(`${c.data_fim_contrato}T00:00:00-03:00`).getTime()-todayAtSP.getTime())/86400000):null;
+    const bucket=gastoLeadsPorCliente.get(c.id)??{u7:{gasto:0,leads:0},a7:{gasto:0,leads:0}};
+    return classifyClientHealth({
+      clienteId:c.id,nome:c.nome,temContaMeta,
+      cobranca:cobrancaRow?{status:cobrancaRow.status as CobrancaStatus,diaVencimento:cobrancaRow.dia_vencimento}:null,
+      diaHoje,diasParaFimContrato,sincronizacao,
+      gastoUltimos7:bucket.u7.gasto,gastoAnteriores7:bucket.a7.gasto,
+      leadsMetaUltimos7:bucket.u7.leads,leadsMetaAnteriores7:bucket.a7.leads,
+      leadsCrmUltimos7:crmLeadsRecentesPorCliente.get(c.id)??0,
+    });
+  }));
 
   let metaQuery=supabaseAdmin.from("meta_ads_insights_daily").select("cliente_id,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,reach,clicks,leads,lead_action_type,currency").gte("metric_date",start).lte("metric_date",end);
   if(selectedClient!=="all") metaQuery=metaQuery.eq("cliente_id",selectedClient);
@@ -94,6 +155,7 @@ export default async function DashboardExecutivaPage({searchParams}:{searchParam
   const funnel=isAxven?[["Lead CRM",crm.crmLeads,null],["Qualificado",crm.qualified,safeRatio(crm.qualified,crm.crmLeads)],["Agendado",crm.scheduled,safeRatio(crm.scheduled,crm.qualified)],["Proposta",crm.proposals,safeRatio(crm.proposals,crm.scheduled)],["Venda",crm.sales,safeRatio(crm.sales,crm.proposals)]] as const:[["Leads CRM",crm.crmLeads,null],["Qualificados",crm.qualified,safeRatio(crm.qualified,crm.crmLeads)],["Vendas",crm.sales,safeRatio(crm.sales,crm.qualified)]] as const;
 
   return <AppShell title="Dashboard Executiva" subtitle="Axven Digital · mídia Meta e resultado comercial" activeLabel="Dashboard"><div className="mx-auto max-w-[1680px] space-y-5 pb-8">
+    <ClientHealthSection rows={saudePorCliente}/>
     <section className="rounded-[28px] border border-white/[0.08] bg-[#0b0d11] p-6 lg:p-8"><div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#ff7559]">Visão executiva</p><h1 className="mt-2 text-4xl font-semibold tracking-[-0.04em] text-white">Mídia e receita, sem misturar conceitos.</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">Lead Meta representa conversões reportadas pela Meta. Lead CRM representa registros efetivamente recebidos pela operação.</p></div><form className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" method="get"><input aria-label="Data inicial" name="inicio" type="date" defaultValue={start} className="rounded-xl border border-white/10 bg-[#14161b] px-3 py-2.5 text-sm text-zinc-200"/><input aria-label="Data final" name="fim" type="date" defaultValue={end} className="rounded-xl border border-white/10 bg-[#14161b] px-3 py-2.5 text-sm text-zinc-200"/><select aria-label="Cliente" name="cliente" defaultValue={selectedClient} className="rounded-xl border border-white/10 bg-[#14161b] px-3 py-2.5 text-sm text-zinc-200"><option value="all">Todos os clientes</option>{clients.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select><select aria-label="Campanha" name="campanha" defaultValue={selectedCampaign} className="rounded-xl border border-white/10 bg-[#14161b] px-3 py-2.5 text-sm text-zinc-200"><option value="all">Todas as campanhas</option>{campaignOptions.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select><button className="rounded-xl bg-[#ff5a3c] px-4 py-2.5 text-sm font-semibold text-white sm:col-span-2 xl:col-span-4">Aplicar filtros</button></form></div><p className="mt-4 text-xs text-zinc-600">Período: {start.split("-").reverse().join("/")} a {end.split("-").reverse().join("/")}</p></section>
     <section><p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#ff7559]">Mídia Meta</p><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{mediaCards.map(m=><Metric key={m.label}{...m}/>)}</div></section>
     <section><p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#ff7559]">Comercial CRM</p><div className={`grid gap-3 sm:grid-cols-2 ${isAxven?"xl:grid-cols-4":"xl:grid-cols-5"}`}>{commercialCards.map(m=><Metric key={m.label}{...m}/>)}</div></section>
@@ -106,6 +168,45 @@ type BreakdownRow={id:string;name:string;media:ReturnType<typeof summarizeMeta>;
 function BreakdownTable({title,label,rows,detailed=false}:{title:string;label:string;rows:BreakdownRow[];detailed?:boolean}){
   const headings=["Investimento","Leads Meta","Leads CRM","Qualificados","Agendados","Propostas","Vendas","Faturamento","CPL Meta","Custo/Lead CRM",...(detailed?["Custo/Qualificado","Custo/Agendamento"]:[]),"Custo/Venda","ROAS"];
   return <section className="rounded-[26px] border border-white/[0.08] bg-[#0b0d11] p-5 lg:p-6"><p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-600">{label}</p><h2 className="mt-1 text-xl font-semibold text-white">{title}</h2><div className="mt-5 overflow-x-auto"><table className={`w-full text-sm ${detailed?"min-w-[1400px]":"min-w-[1180px]"}`}><thead className="text-left text-xs text-zinc-600"><tr><th className="border-b border-white/[0.07] px-3 py-3 font-medium">{label.slice(0,-1)}</th>{headings.map(h=><th key={h} className="border-b border-white/[0.07] px-3 py-3 font-medium">{h}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.id} className="border-b border-white/[0.05] text-zinc-300"><td className="max-w-72 px-3 py-4"><span className="block truncate font-medium text-white">{r.name}</span><span className="text-[11px] text-zinc-600">{r.id}</span></td><td className="px-3 py-4">{money(r.media.spend)}</td><td className="px-3 py-4">{integer(r.media.metaLeads)}</td><td className="px-3 py-4">{integer(r.crm.crmLeads)}</td><td className="px-3 py-4">{integer(r.crm.qualified)}</td><td className="px-3 py-4">{integer(r.crm.scheduled)}</td><td className="px-3 py-4">{integer(r.crm.proposals)}</td><td className="px-3 py-4">{integer(r.crm.sales)}</td><td className="px-3 py-4">{money(r.crm.revenue)}</td><td className="px-3 py-4">{money(r.media.cpl)}</td><td className="px-3 py-4">{money(safeRatio(r.media.spend,r.crm.crmLeads))}</td>{detailed&&<><td className="px-3 py-4">{money(safeRatio(r.media.spend,r.crm.qualified))}</td><td className="px-3 py-4">{money(safeRatio(r.media.spend,r.crm.scheduled))}</td></>}<td className="px-3 py-4">{money(safeRatio(r.media.spend,r.crm.sales))}</td><td className="px-3 py-4">{multiple(safeRatio(r.crm.revenue,r.media.spend))}</td></tr>)}</tbody></table>{!rows.length&&<p className="py-8 text-center text-sm text-zinc-600">Nenhum dado Meta sincronizado para o período.</p>}</div></section>;
+}
+
+const HEALTH_LABEL:Record<ClientHealth["nivel"],string>={critico:"Crítico",atencao:"Atenção",sem_dados:"Sem dados",saudavel:"Saudável"};
+const HEALTH_BADGE:Record<ClientHealth["nivel"],string>={
+  critico:"border-rose-500/30 bg-rose-500/[0.1] text-rose-300",
+  atencao:"border-amber-500/30 bg-amber-500/[0.1] text-amber-200",
+  sem_dados:"border-white/15 bg-white/[0.04] text-zinc-400",
+  saudavel:"border-emerald-500/30 bg-emerald-500/[0.1] text-emerald-300",
+};
+const HEALTH_DOT:Record<ClientHealth["nivel"],string>={critico:"bg-rose-500",atencao:"bg-amber-400",sem_dados:"bg-zinc-500",saudavel:"bg-emerald-400"};
+
+function ClientHealthSection({rows}:{rows:ClientHealth[]}){
+  const counts=rows.reduce((acc,r)=>{acc[r.nivel]+=1;return acc;},{critico:0,atencao:0,sem_dados:0,saudavel:0} as Record<ClientHealth["nivel"],number>);
+  const precisaAtencao=rows.filter(r=>r.nivel==="critico"||r.nivel==="atencao");
+  return <section className="rounded-[26px] border border-white/[0.08] bg-[#0b0d11] p-5 lg:p-6">
+    <div className="flex flex-col gap-1"><p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#ff7559]">Saúde por cliente</p><h2 className="text-xl font-semibold text-white">Quem precisa de atenção agora</h2></div>
+    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {(["critico","atencao","sem_dados","saudavel"] as const).map(nivel=>
+        <div key={nivel} className={`rounded-2xl border p-4 ${HEALTH_BADGE[nivel]}`}>
+          <p className="text-[10px] uppercase tracking-[0.18em] opacity-80">{HEALTH_LABEL[nivel]}</p>
+          <p className="mt-1 text-2xl font-semibold text-white">{counts[nivel]}</p>
+        </div>)}
+    </div>
+    <div className="mt-5 overflow-x-auto">
+      <table className="w-full min-w-[720px] text-sm">
+        <thead className="text-left text-xs text-zinc-600"><tr>{["Cliente","Status","Motivo","Ação sugerida"].map(h=><th key={h} className="border-b border-white/[0.07] px-3 py-3 font-medium">{h}</th>)}</tr></thead>
+        <tbody>
+          {precisaAtencao.map(r=>
+            <tr key={r.clienteId} className="border-b border-white/[0.05] text-zinc-300">
+              <td className="px-3 py-4 font-medium text-white">{r.nome}</td>
+              <td className="px-3 py-4"><span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${HEALTH_BADGE[r.nivel]}`}><span className={`h-1.5 w-1.5 rounded-full ${HEALTH_DOT[r.nivel]}`}/>{HEALTH_LABEL[r.nivel]}</span></td>
+              <td className="px-3 py-4 text-zinc-400">{r.motivos.join("; ")}</td>
+              <td className="px-3 py-4 text-zinc-400">{r.acao}</td>
+            </tr>)}
+        </tbody>
+      </table>
+      {!precisaAtencao.length&&<p className="py-8 text-center text-sm text-zinc-600">Nenhum cliente em atenção ou crítico agora — {counts.saudavel} saudável(is), {counts.sem_dados} sem conta Meta conectada.</p>}
+    </div>
+  </section>;
 }
 
 function ClientTable({rows}:{rows:Array<{client:Client;media:ReturnType<typeof summarizeMeta>;crm:ReturnType<typeof summarizeCrm>}>}){
