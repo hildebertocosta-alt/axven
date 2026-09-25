@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { validateWebhookSecret } from "@/app/lib/webhookAuth";
 
-// Recebe leads normalizados pelo n8n e insere no CRM do cliente correspondente.
+// Recebe leads normalizados pelo n8n e registra no CRM do cliente correspondente.
 // Quando a campanha nao vem no payload do Facebook Lead Ads, usa o ad_id
 // (anuncio_source_id) para completar a atribuicao pela camada Meta persistida.
+// O registro passa pela RPC registrar_lead_v1, que garante:
+//   - formulario Meta idempotente por leadgen_id (reentregas nao duplicam);
+//   - WhatsApp com 1 lead aberto por pessoa (cada mensagem nao vira um lead novo);
+//   - data original do lead (criado_em_meta) e respostas do formulario preservadas.
 export async function POST(req: NextRequest) {
   const authError = validateWebhookSecret(req);
   if (authError) return authError;
@@ -30,6 +34,11 @@ export async function POST(req: NextRequest) {
     page_id,
     pixel_id,
     dataset_id,
+    whatsapp_lid,
+    leadgen_id,
+    form_id,
+    criado_em_meta,
+    respostas_formulario,
   } = body as {
     cliente_slug?: string;
     nome?: string;
@@ -46,6 +55,11 @@ export async function POST(req: NextRequest) {
     page_id?: string;
     pixel_id?: string;
     dataset_id?: string;
+    whatsapp_lid?: string;
+    leadgen_id?: string;
+    form_id?: string;
+    criado_em_meta?: string;
+    respostas_formulario?: Record<string, unknown>;
   };
 
   if (!cliente_slug || !nome) {
@@ -83,15 +97,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const { data: lead, error: leadError } = await supabaseAdmin
-    .from("leads")
-    .insert({
+  // Data original do lead: so aceita um timestamp valido (senao a RPC usa now()).
+  const criadoEmOrigem =
+    criado_em_meta && !Number.isNaN(Date.parse(criado_em_meta.replace(/([+-]\d{2})(\d{2})$/, "$1:$2")))
+      ? criado_em_meta
+      : null;
+
+  const { data, error } = await supabaseAdmin.rpc("registrar_lead_v1", {
+    p: {
       cliente_id: cliente.id,
       nome,
       telefone: telefone ?? null,
       email: email ?? null,
-      etapa: "lead",
-      origem: origem ?? "Meta Ads",
+      origem: origem ?? null,
       campanha: campanhaFinal,
       conjunto: conjuntoFinal,
       anuncio: anuncioFinal,
@@ -102,13 +120,30 @@ export async function POST(req: NextRequest) {
       page_id: page_id ?? null,
       pixel_id: pixel_id ?? null,
       dataset_id: dataset_id ?? null,
-    })
-    .select("id, nome, cliente_id, etapa")
-    .single();
+      whatsapp_lid: whatsapp_lid ?? null,
+      leadgen_id: leadgen_id ?? null,
+      form_id: form_id ?? null,
+      criado_em_origem: criadoEmOrigem,
+      respostas_formulario:
+        respostas_formulario && typeof respostas_formulario === "object" ? respostas_formulario : null,
+    },
+  });
 
-  if (leadError) {
-    return NextResponse.json({ error: leadError.message }, { status: 500 });
+  const registro = Array.isArray(data) ? data[0] : data;
+  if (error || !registro?.lead_id) {
+    return NextResponse.json({ error: error?.message ?? "falha ao registrar lead" }, { status: 500 });
   }
 
-  return NextResponse.json({ lead });
+  const { data: lead, error: leadError } = await supabaseAdmin
+    .from("leads")
+    .select("id, nome, cliente_id, etapa")
+    .eq("id", registro.lead_id)
+    .single();
+
+  if (leadError || !lead) {
+    return NextResponse.json({ error: leadError?.message ?? "lead nao encontrado" }, { status: 500 });
+  }
+
+  // `criado` = false quando o lead ja existia (reentrega do Meta ou nova mensagem no WhatsApp).
+  return NextResponse.json({ lead, criado: registro.criado });
 }
