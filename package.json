@@ -12,7 +12,8 @@
     "test:meta-insights": "node --test tests/meta-insights-analytics.test.mjs",
     "test:dashboard-executiva": "node --test tests/dashboard-executiva.test.mjs",
     "test:dashboard-executiva-saude": "node --test tests/dashboard-executiva-saude.test.mjs",
-    "test:meta-sync-cron": "node --test tests/meta-sync-cron.test.mjs"
+    "test:meta-sync-cron": "node --test tests/meta-sync-cron.test.mjs",
+    "test:lead-etapas": "node --test tests/lead-etapas.test.mjs"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.21",
