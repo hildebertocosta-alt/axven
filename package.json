@@ -17,7 +17,10 @@
     "test:painel-axven-base": "node --test tests/painel-axven-base-contratos.test.mjs",
     "test:portal-leads": "node --test tests/portal-leads.test.mjs",
     "test:portal-resultado": "node --test tests/portal-resultado.test.mjs",
-    "test:portal-contratos": "node --test tests/portal-contratos.test.mjs"
+    "test:portal-contratos": "node --test tests/portal-contratos.test.mjs",
+    "test:meta-venda": "node --test tests/meta-venda.test.mjs",
+    "test:lembrete-parados": "node --test tests/lembrete-parados.test.mjs",
+    "test:entrega3": "node --test tests/entrega3-contratos.test.mjs"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.21",
