@@ -59,7 +59,11 @@ export function lerValorMonetario(valor: unknown): number | null {
   if (typeof valor !== "string") return null;
   const limpo = valor.trim().replace(/^R\$\s*/i, "");
   if (!limpo) return null;
-  const normalizado = limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo;
+  // "2.500,50" e "1.200" (milhar brasileiro, com ou sem centavos) perdem os pontos; "1500.75" fica como está.
+  const milharSemCentavos = /^\d{1,3}(\.\d{3})+$/.test(limpo);
+  const normalizado = limpo.includes(",")
+    ? limpo.replace(/\./g, "").replace(",", ".")
+    : milharSemCentavos ? limpo.replace(/\./g, "") : limpo;
   const numero = Number(normalizado);
   return Number.isFinite(numero) && numero > 0 ? numero : null;
 }

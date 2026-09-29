@@ -96,3 +96,10 @@ test("parâmetros da RPC saem com os nomes que o banco espera", () => {
     p_motivo: "preco", p_motivo_detalhe: null, p_origem: "portal", p_autor_user_id: "U1",
   });
 });
+
+test("milhar brasileiro sem centavos não vira centavos", () => {
+  assert.equal(lerValorMonetario("1.200"), 1200);
+  assert.equal(lerValorMonetario("R$ 2.500"), 2500);
+  assert.equal(lerValorMonetario("1.250.000"), 1250000);
+  assert.equal(lerValorMonetario("12.5"), 12.5);
+});

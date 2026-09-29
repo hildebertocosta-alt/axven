@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
 
-export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado" | "nao_fechou" | "desqualificado";
+export type Etapa = string;
 
 export type LeadResumo = {
   id: string;
@@ -29,25 +29,30 @@ type MensagemRow = {
   criado_em: string;
 };
 
-const etapaLabel: Record<Etapa, string> = {
-  lead: "Lead",
+const etapaLabel: Record<string, string> = {
+  lead: "Novo",
   qualificado: "Qualificado",
-  agendado: "Agendado",
-  proposta_enviada: "Proposta Enviada",
-  fechado: "Fechado",
-  nao_fechou: "Não Fechou",
-  desqualificado: "Desqualificado",
+  oportunidade: "Oportunidade",
+  fechado: "Venda",
+  perdido: "Perdido",
 };
 
-const etapaBadge: Record<Etapa, string> = {
+const etapaBadge: Record<string, string> = {
   lead: "border-white/10 bg-white/5 text-zinc-300",
   qualificado: "border-amber-500/30 bg-amber-500/10 text-amber-200",
-  agendado: "border-violet-500/30 bg-violet-500/10 text-violet-200",
-  proposta_enviada: "border-sky-500/30 bg-sky-500/10 text-sky-200",
+  oportunidade: "border-violet-500/30 bg-violet-500/10 text-violet-200",
   fechado: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-  nao_fechou: "border-orange-500/30 bg-orange-500/10 text-orange-200",
-  desqualificado: "border-rose-500/30 bg-rose-500/10 text-rose-200",
+  perdido: "border-rose-500/30 bg-rose-500/10 text-rose-200",
 };
+
+// Etapas personalizadas do cliente (ex.: "visita_feita") aparecem com o próprio nome.
+function rotuloEtapa(etapa: string) {
+  return etapaLabel[etapa] ?? etapa.replace(/_/g, " ");
+}
+
+function corEtapa(etapa: string) {
+  return etapaBadge[etapa] ?? "border-violet-500/30 bg-violet-500/10 text-violet-200";
+}
 
 function formatDataHora(value: string) {
   return new Date(value).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -183,8 +188,8 @@ export function ConversasView({ initialLeads }: { initialLeads: LeadResumo[] }) 
             </div>
             <p className="mt-0.5 text-xs text-zinc-400">{lead.telefone ?? "Sem telefone"}</p>
             <div className="mt-2 flex items-center justify-between gap-2">
-              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${etapaBadge[lead.etapa]}`}>
-                {etapaLabel[lead.etapa]}
+              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${corEtapa(lead.etapa)}`}>
+                {rotuloEtapa(lead.etapa)}
               </span>
               <span className="text-[10px] text-zinc-500">{ultimaAtividade(lead)}</span>
             </div>
@@ -320,8 +325,8 @@ function PerfilLeadPanel({
             <p className="text-lg font-semibold text-white">{lead.nome || "Sem nome"}</p>
             <p className="mt-1 text-zinc-400">{lead.telefone ?? "Sem telefone"}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${etapaBadge[lead.etapa]}`}>
-                {etapaLabel[lead.etapa]}
+              <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${corEtapa(lead.etapa)}`}>
+                {rotuloEtapa(lead.etapa)}
               </span>
               {lead.pausado_ia ? (
                 <span className="inline-flex rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-medium text-violet-200">

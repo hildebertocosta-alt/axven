@@ -163,4 +163,45 @@ begin
   end if;
 end $$;
 
+-- T17: lead Perdido que volta a chamar no WhatsApp vira lead novo (registrar_lead_v1)
+-- T18: não dá para apagar o valor de uma venda sem mudar a etapa
+-- T19: não dá para apagar o motivo de uma perda sem mudar a etapa
+do $$
+declare
+  v_cliente uuid;
+  v_perdido uuid;
+  v_venda uuid;
+  v_novo record;
+  v_ok boolean;
+begin
+  select id into v_cliente from public.clientes where nome = 'Cliente Teste Plano';
+
+  insert into public.leads (nome, telefone, cliente_id, plataforma) values ('Lead Perdido WA', '5581988887777', v_cliente, 'whatsapp')
+  returning id into v_perdido;
+  update public.leads set etapa = 'perdido', motivo_perda = 'preco' where id = v_perdido;
+  select * into v_novo from public.registrar_lead_v1(jsonb_build_object(
+    'cliente_id', v_cliente, 'nome', 'Lead Perdido WA', 'telefone', '5581988887777', 'plataforma', 'whatsapp'));
+  if not v_novo.criado or v_novo.lead_id = v_perdido then
+    raise exception 'T17 FALHOU: lead perdido que voltou não virou lead novo (criado=%)', v_novo.criado;
+  end if;
+
+  insert into public.leads (nome, telefone, cliente_id) values ('Lead Venda', '5581977776666', v_cliente) returning id into v_venda;
+  update public.leads set etapa = 'fechado', valor_conversao = 500 where id = v_venda;
+  v_ok := false;
+  begin
+    update public.leads set valor_conversao = null where id = v_venda;
+  exception when others then
+    v_ok := sqlerrm like '%valor_venda_obrigatorio%';
+  end;
+  if not v_ok then raise exception 'T18 FALHOU: valor da venda foi apagado sem mudar a etapa'; end if;
+
+  v_ok := false;
+  begin
+    update public.leads set motivo_perda = null where id = v_perdido;
+  exception when others then
+    v_ok := sqlerrm like '%motivo_perda_obrigatorio%';
+  end;
+  if not v_ok then raise exception 'T19 FALHOU: motivo da perda foi apagado sem mudar a etapa'; end if;
+end $$;
+
 select 'TODOS OS TESTES PASSARAM' as resultado;
