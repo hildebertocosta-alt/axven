@@ -15,6 +15,7 @@ const PAGE_SIZE = 1000;
 
 type Props = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ parados?: string }>;
 };
 
 type ClienteRow = {
@@ -46,8 +47,10 @@ async function fetchAllLeads(clienteId: string) {
   return leads;
 }
 
-export default async function CrmKanbanPage({ params }: Props) {
+export default async function CrmKanbanPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  // O lembrete diário manda ?parados=1 para abrir já filtrado nos leads parados.
+  const { parados } = await searchParams;
 
   const { data: cliente } = await supabaseAdmin
     .from("clientes")
@@ -79,7 +82,7 @@ export default async function CrmKanbanPage({ params }: Props) {
       sidebarItems={portalSidebarItems(slug)}
     >
       <PortalTabs slug={slug} active="leads" />
-      <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={leads} etapas={(etapas ?? []) as EtapaCliente[]} atendimentoIa={(cliente as ClienteRow).atendimento_ia} />
+      <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={leads} etapas={(etapas ?? []) as EtapaCliente[]} atendimentoIa={(cliente as ClienteRow).atendimento_ia} soParadosInicial={parados === "1"} />
     </AppShell>
   );
 }

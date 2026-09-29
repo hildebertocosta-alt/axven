@@ -28,3 +28,22 @@ test("as três rotas que registram venda chamam o envio ao Meta", () => {
     assert.match(ler(rota), /enviarVendaAoMeta\(/, rota);
   }
 });
+
+test("cron do lembrete: autenticado, trava diária, só atendentes com lembrete e só quando há parados", () => {
+  const src = ler("app/api/cron/lembrete-parados/route.ts");
+  assert.match(src, /isValidCronAuthorization/);
+  assert.match(src, /\.eq\("recebe_lembrete", true\)/);
+  assert.match(src, /from\("notificacoes_whatsapp"\)/);
+  assert.match(src, /23505/);
+  assert.match(src, /UAZAPI_AXVEN_TOKEN/);
+  assert.match(src, /textoLembrete\(/);
+  assert.match(src, /parados === 0/);
+  assert.match(src, /plataforma\.is\.null,plataforma\.neq\.teste/);
+  const cron = JSON.parse(ler("vercel.json"));
+  assert.ok(cron.crons.some((c) => c.path === "/api/cron/lembrete-parados" && c.schedule === "30 11 * * *"));
+});
+
+test("link do lembrete abre o painel já filtrado nos parados", () => {
+  assert.match(ler("app/crm/[slug]/page.tsx"), /parados === "1"/);
+  assert.match(ler("app/crm/[slug]/KanbanBoard.tsx"), /soParadosInicial/);
+});

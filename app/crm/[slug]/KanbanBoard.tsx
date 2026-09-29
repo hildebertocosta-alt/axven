@@ -256,13 +256,14 @@ type KanbanBoardProps = {
   accessMode?: AccessMode;
   clienteId?: string;
   atendimentoIa?: boolean;
+  soParadosInicial?: boolean;
 };
 
-export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "portal", clienteId, atendimentoIa = false }: KanbanBoardProps) {
+export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "portal", clienteId, atendimentoIa = false, soParadosInicial = false }: KanbanBoardProps) {
   const columns = montarColunas(etapas);
   const etapasOrdenadas = ordenarEtapas(etapas);
   const encerradas = new Set(etapas.filter((etapa) => etapa.tipo === "venda" || etapa.tipo === "perdido").map((etapa) => etapa.chave));
-  const [filtro, setFiltro] = useState<FiltroLeads>(FILTRO_INICIAL);
+  const [filtro, setFiltro] = useState<FiltroLeads>({ ...FILTRO_INICIAL, soParados: soParadosInicial });
   const [fichaLead, setFichaLead] = useState<LeadRow | null>(null);
   const agora = new Date();
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
