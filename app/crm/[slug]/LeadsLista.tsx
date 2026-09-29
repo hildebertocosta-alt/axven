@@ -1,6 +1,6 @@
 "use client";
 
-import { diasParado, estaParado } from "@/app/lib/portalLeads";
+import { diasParado, estaParado, formatarChegada } from "@/app/lib/portalLeads";
 import { MOTIVOS_PERDA, type EtapaCliente } from "@/app/lib/leadEtapas";
 import type { LeadRow } from "./KanbanBoard";
 
@@ -11,11 +11,12 @@ type Props = {
   agora: Date;
   onMover: (lead: LeadRow, etapaDestino: string) => void;
   onTogglePausa?: (lead: LeadRow) => void;
+  onAbrir: (lead: LeadRow) => void;
 };
 
 const moeda = (valor: number, currency = "BRL") => new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(valor);
 
-export function LeadsLista({ leads, etapas, encerradas, agora, onMover, onTogglePausa }: Props) {
+export function LeadsLista({ leads, etapas, encerradas, agora, onMover, onTogglePausa, onAbrir }: Props) {
   const tipoEtapa = (chave: string) => etapas.find((etapa) => etapa.chave === chave)?.tipo;
   const nomeEtapa = (chave: string) => etapas.find((etapa) => etapa.chave === chave)?.nome ?? chave;
 
@@ -31,10 +32,13 @@ export function LeadsLista({ leads, etapas, encerradas, agora, onMover, onToggle
         return (
           <li key={lead.id} className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-white">{lead.nome}</p>
+              <button type="button" onClick={() => onAbrir(lead)} className="min-w-0 text-left">
+                <p className="truncate text-base font-semibold text-white">
+                  {lead.nome} <span className="text-zinc-500">›</span>
+                </p>
                 <p className="text-sm text-zinc-400">{lead.telefone ?? "Sem telefone"}</p>
-              </div>
+                <p className="text-xs text-zinc-500">Chegou em {formatarChegada(lead.criado_em)}</p>
+              </button>
               <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-200">{nomeEtapa(lead.etapa)}</span>
             </div>
             {lead.anuncio ? <p className="mt-2 truncate text-xs text-zinc-400">📣 {lead.anuncio}</p> : null}
