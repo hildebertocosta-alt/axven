@@ -32,3 +32,20 @@ test("aba Leads tem lista para celular com botões de mover, filtros e dias para
   assert.match(lista, /md:hidden/);
   assert.match(lista, /diasParado\(/);
 });
+
+test("aba Resultado lê só o cliente do slug e usa os cálculos testados", () => {
+  const resultado = ler("app/crm/[slug]/resultado/page.tsx");
+  assert.match(resultado, /\.eq\("slug", slug\)/);
+  for (const fn of ["resolverPeriodo(", "resumoResultado(", "funil(", "rankingAnuncios("]) assert.ok(resultado.includes(fn), fn);
+  assert.match(resultado, /from\("meta_ads_insights_daily"\)/);
+  assert.match(resultado, /from\("lead_etapa_eventos"\)/);
+  assert.match(resultado, /<PortalTabs slug=\{slug\} active="resultado" \/>/);
+  assert.match(resultado, /leads que chegaram no período/i);
+});
+
+test("Conversas e Disparo saíram do portal (redirecionam para Leads)", () => {
+  for (const pagina of ["app/crm/[slug]/conversas/page.tsx", "app/crm/[slug]/disparo/page.tsx"]) {
+    const src = ler(pagina);
+    assert.match(src, /redirect\(`\/crm\/\$\{slug\}`\)/);
+  }
+});
