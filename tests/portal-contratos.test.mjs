@@ -106,3 +106,9 @@ test("tocar no lead abre a ficha com as respostas do formulário, no portal e na
     assert.match(ler(pagina), /respostas_formulario/, `${pagina}: não carrega as respostas`);
   }
 });
+
+test("no celular o topo mostra o ícone A da Axven (o menu lateral some abaixo de lg)", () => {
+  const topo = ler("app/components/dashboard/Topbar.tsx");
+  assert.match(topo, /\/axven-icon\.png/);
+  assert.match(topo, /lg:hidden/);
+});
