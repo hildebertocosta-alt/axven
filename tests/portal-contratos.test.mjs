@@ -118,4 +118,7 @@ test("nome da etapa fica fixo no topo da coluna ao rolar o quadro, e há busca p
   assert.match(kanban, /sticky top-0 z-10[^"]*bg-/, "cabeçalho da coluna precisa ser sticky com fundo");
   assert.match(kanban, /max-h-\[calc\(100dvh-/, "quadro rola por dentro para o cabeçalho ficar preso");
   assert.match(kanban, /placeholder="Buscar por nome ou telefone"/);
+  // Colunas curtas precisam esticar até a altura da maior; senão o nome delas some ao rolar.
+  const quadro = kanban.match(/max-h-\[calc\(100dvh-[\s\S]*?`\}/)[0];
+  assert.doesNotMatch(quadro, /items-start/, "colunas não podem ficar com a altura do próprio conteúdo");
 });

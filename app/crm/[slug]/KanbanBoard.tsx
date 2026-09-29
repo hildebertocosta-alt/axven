@@ -576,7 +576,8 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
         >
           <div
             className={`max-h-[calc(100dvh-12rem)] overflow-auto pb-2 ${
-              accessMode === "internal" ? "grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" : "flex items-start gap-4"
+              // Alinhamento padrão (stretch): todas as colunas esticam até a altura da maior, e o nome de cada etapa fica preso ao rolar.
+              accessMode === "internal" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" : "flex gap-4"
             }`}
           >
             {columns.map((column) => (
