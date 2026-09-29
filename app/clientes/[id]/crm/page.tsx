@@ -46,7 +46,7 @@ export default async function ClienteCrmInternoPage({ params }: Props) {
   const { id } = await params;
   const { data: cliente } = await supabaseAdmin
     .from("clientes")
-    .select("id,nome,slug,status_pagamento")
+    .select("id,nome,slug,status_pagamento,atendimento_ia")
     .eq("id", id)
     .single();
 
@@ -110,7 +110,7 @@ export default async function ClienteCrmInternoPage({ params }: Props) {
             </div>
             <p className="text-xs text-zinc-600">Arraste um card para atualizar a etapa</p>
           </div>
-          <KanbanBoard clienteNome={cliente.nome} clienteId={cliente.id} accessMode="internal" initialLeads={leads} etapas={etapas} />
+          <KanbanBoard clienteNome={cliente.nome} clienteId={cliente.id} accessMode="internal" initialLeads={leads} etapas={etapas} atendimentoIa={Boolean(cliente.atendimento_ia)} />
         </section>
       </div>
     </AppShell>

@@ -10,7 +10,7 @@ type Props = {
   encerradas: Set<string>;
   agora: Date;
   onMover: (lead: LeadRow, etapaDestino: string) => void;
-  onTogglePausa: (lead: LeadRow) => void;
+  onTogglePausa?: (lead: LeadRow) => void;
 };
 
 const moeda = (valor: number, currency = "BRL") => new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(valor);
@@ -51,18 +51,22 @@ export function LeadsLista({ leads, etapas, encerradas, agora, onMover, onToggle
                 Motivo: {MOTIVOS_PERDA.find((motivo) => motivo.chave === lead.motivo_perda)?.rotulo ?? lead.motivo_perda}
               </p>
             ) : null}
-            {lead.pausado_ia ? (
-              <p className="mt-2 text-xs font-medium text-violet-200">🙋 Você assumiu essa conversa</p>
+            {onTogglePausa ? (
+              <>
+                {lead.pausado_ia ? (
+                  <p className="mt-2 text-xs font-medium text-violet-200">🙋 Você assumiu essa conversa</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => onTogglePausa(lead)}
+                  className={`mt-2 min-h-10 w-full rounded-xl border px-3 py-2 text-sm ${
+                    lead.pausado_ia ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-violet-500/30 bg-violet-500/10 text-violet-200"
+                  }`}
+                >
+                  {lead.pausado_ia ? "🤖 Devolver pra IA" : "🙋 Assumir conversa"}
+                </button>
+              </>
             ) : null}
-            <button
-              type="button"
-              onClick={() => onTogglePausa(lead)}
-              className={`mt-2 min-h-10 w-full rounded-xl border px-3 py-2 text-sm ${
-                lead.pausado_ia ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-violet-500/30 bg-violet-500/10 text-violet-200"
-              }`}
-            >
-              {lead.pausado_ia ? "🤖 Devolver pra IA" : "🙋 Assumir conversa"}
-            </button>
             <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Mover para</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {etapas
