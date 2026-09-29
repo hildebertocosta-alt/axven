@@ -4,10 +4,10 @@
 const DIA_MS = 24 * 60 * 60 * 1000;
 const LIMITE_PARADO_DIAS = 3;
 
-// `de` e `ate` são datas "AAAA-MM-DD" no dia de Brasília; vazias = sem limite.
-export type FiltroLeads = { etapa: string; soParados: boolean; anuncio: string; chegada: "todos" | "7" | "30"; de: string; ate: string };
+// `de` e `ate` são datas "AAAA-MM-DD" no dia de Brasília; vazias = sem limite. `busca` procura no nome e no telefone.
+export type FiltroLeads = { etapa: string; soParados: boolean; anuncio: string; chegada: "todos" | "7" | "30"; de: string; ate: string; busca: string };
 
-export const FILTRO_INICIAL: FiltroLeads = { etapa: "todas", soParados: false, anuncio: "todos", chegada: "todos", de: "", ate: "" };
+export const FILTRO_INICIAL: FiltroLeads = { etapa: "todas", soParados: false, anuncio: "todos", chegada: "todos", de: "", ate: "", busca: "" };
 
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -36,7 +36,27 @@ export function formatarChegada(iso: string | null | undefined): string {
   return `${partes.day}/${partes.month}/${partes.year} ${partes.hour}:${partes.minute}`;
 }
 
-export type LeadFiltravel = { etapa: string; criado_em: string; etapa_alterada_em?: string | null; anuncio?: string | null };
+export type LeadFiltravel = {
+  etapa: string;
+  criado_em: string;
+  etapa_alterada_em?: string | null;
+  anuncio?: string | null;
+  nome?: string | null;
+  telefone?: string | null;
+};
+
+// "José  Antônio" → "jose antonio": busca sem acento, maiúscula ou espaço sobrando.
+function semAcento(texto: string): string {
+  return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function bateBusca(lead: LeadFiltravel, busca: string): boolean {
+  const texto = semAcento(busca);
+  if (!texto) return true;
+  if (semAcento(lead.nome ?? "").includes(texto)) return true;
+  const digitos = busca.replace(/\D/g, "");
+  return digitos.length >= 3 && (lead.telefone ?? "").replace(/\D/g, "").includes(digitos);
+}
 
 export function diasParado(desde: string | null | undefined, agora: Date): number {
   if (!desde) return 0;
@@ -63,6 +83,7 @@ export function filtrarLeads<T extends LeadFiltravel>(
     if (filtro.etapa !== "todas" && lead.etapa !== filtro.etapa) return false;
     if (filtro.anuncio !== "todos" && (lead.anuncio ?? "") !== filtro.anuncio) return false;
     if (filtro.soParados && !estaParado(lead, etapasEncerradas, agora)) return false;
+    if (!bateBusca(lead, filtro.busca ?? "")) return false;
     const chegou = new Date(lead.criado_em).getTime();
     if (limiteChegada !== null && chegou < limiteChegada) return false;
     if (desde !== null && chegou < desde) return false;

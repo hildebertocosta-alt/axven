@@ -95,3 +95,19 @@ test("filtro por data de/até usa o dia de Brasília e aceita só um dos lados",
   assert.deepEqual(ids({ ate: "2026-09-09" }), ["a"]);
   assert.deepEqual(ids({ de: "data ruim" }), ["a", "b", "c", "d"]);
 });
+
+test("busca por nome ignora acentos e maiúsculas e também acha pelo telefone", () => {
+  const leads = [
+    { id: "a", nome: "Josuel Bernardo Cruz", telefone: "558185065768", etapa: "lead", criado_em: "2026-09-01T12:00:00Z" },
+    { id: "b", nome: "José Antônio", telefone: "5581999990000", etapa: "lead", criado_em: "2026-09-01T12:00:00Z" },
+    { id: "c", nome: null, telefone: null, etapa: "lead", criado_em: "2026-09-01T12:00:00Z" },
+  ];
+  const ids = (busca) => filtrarLeads(leads, { ...FILTRO_INICIAL, busca }, ENCERRADAS, AGORA).map((l) => l.id);
+  assert.deepEqual(ids("josuel"), ["a"]);
+  assert.deepEqual(ids("  JOSE antonio "), ["b"]);
+  assert.deepEqual(ids("jos"), ["a", "b"]);
+  assert.deepEqual(ids("85065"), ["a"]);
+  assert.deepEqual(ids("(81) 99999"), ["b"]);
+  assert.deepEqual(ids(""), ["a", "b", "c"]);
+  assert.equal(FILTRO_INICIAL.busca, "");
+});

@@ -112,3 +112,10 @@ test("no celular o topo mostra o ícone A da Axven (o menu lateral some abaixo d
   assert.match(topo, /\/axven-icon\.png/);
   assert.match(topo, /lg:hidden/);
 });
+
+test("nome da etapa fica fixo no topo da coluna ao rolar o quadro, e há busca por nome", () => {
+  const kanban = ler("app/crm/[slug]/KanbanBoard.tsx");
+  assert.match(kanban, /sticky top-0 z-10[^"]*bg-/, "cabeçalho da coluna precisa ser sticky com fundo");
+  assert.match(kanban, /max-h-\[calc\(100dvh-/, "quadro rola por dentro para o cabeçalho ficar preso");
+  assert.match(kanban, /placeholder="Buscar por nome ou telefone"/);
+});

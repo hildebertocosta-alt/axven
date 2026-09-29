@@ -218,7 +218,8 @@ function KanbanColumn({
 
   return (
     <div className={`flex flex-col ${accessMode === "internal" ? "min-w-0" : "min-w-[280px] flex-1"}`}>
-      <div className="mb-3 flex items-center justify-between px-1">
+      {/* Fica preso no topo do quadro ao rolar, para não perder de vista em qual etapa o lead está. */}
+      <div className="sticky top-0 z-10 mb-3 flex items-center justify-between bg-[#08090d] px-1 py-2">
         <div className="flex items-center gap-2">
           <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${BADGE_POR_TIPO[column.tipo]}`}>
             {column.label}
@@ -482,6 +483,14 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
   return (
     <>
       <div className="mb-4 flex flex-wrap gap-2">
+        <input
+          type="search"
+          value={filtro.busca}
+          onChange={(event) => setFiltro((atual) => ({ ...atual, busca: event.target.value }))}
+          placeholder="Buscar por nome ou telefone"
+          aria-label="Buscar lead por nome ou telefone"
+          className="w-full rounded-xl border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white placeholder:text-zinc-500 sm:w-64"
+        />
         <select
           value={filtro.etapa}
           onChange={(event) => setFiltro((atual) => ({ ...atual, etapa: event.target.value }))}
@@ -565,7 +574,11 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
           onDragEnd={handleDragEnd}
           onDragCancel={() => setActiveLead(null)}
         >
-          <div className={accessMode === "internal" ? "grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" : "flex gap-4 overflow-x-auto pb-2"}>
+          <div
+            className={`max-h-[calc(100dvh-12rem)] overflow-auto pb-2 ${
+              accessMode === "internal" ? "grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" : "flex items-start gap-4"
+            }`}
+          >
             {columns.map((column) => (
               <KanbanColumn
                 key={column.key}
