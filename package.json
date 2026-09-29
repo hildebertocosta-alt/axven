@@ -14,7 +14,10 @@
     "test:dashboard-executiva-saude": "node --test tests/dashboard-executiva-saude.test.mjs",
     "test:meta-sync-cron": "node --test tests/meta-sync-cron.test.mjs",
     "test:lead-etapas": "node --test tests/lead-etapas.test.mjs",
-    "test:painel-axven-base": "node --test tests/painel-axven-base-contratos.test.mjs"
+    "test:painel-axven-base": "node --test tests/painel-axven-base-contratos.test.mjs",
+    "test:portal-leads": "node --test tests/portal-leads.test.mjs",
+    "test:portal-resultado": "node --test tests/portal-resultado.test.mjs",
+    "test:portal-contratos": "node --test tests/portal-contratos.test.mjs"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.21",
