@@ -1,7 +1,7 @@
 "use client";
 
 import { diasParado, estaParado } from "@/app/lib/portalLeads";
-import type { EtapaCliente } from "@/app/lib/leadEtapas";
+import { MOTIVOS_PERDA, type EtapaCliente } from "@/app/lib/leadEtapas";
 import type { LeadRow } from "./KanbanBoard";
 
 type Props = {
@@ -10,9 +10,13 @@ type Props = {
   encerradas: Set<string>;
   agora: Date;
   onMover: (lead: LeadRow, etapaDestino: string) => void;
+  onTogglePausa: (lead: LeadRow) => void;
 };
 
-export function LeadsLista({ leads, etapas, encerradas, agora, onMover }: Props) {
+const moeda = (valor: number, currency = "BRL") => new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(valor);
+
+export function LeadsLista({ leads, etapas, encerradas, agora, onMover, onTogglePausa }: Props) {
+  const tipoEtapa = (chave: string) => etapas.find((etapa) => etapa.chave === chave)?.tipo;
   const nomeEtapa = (chave: string) => etapas.find((etapa) => etapa.chave === chave)?.nome ?? chave;
 
   if (leads.length === 0) {
@@ -39,6 +43,26 @@ export function LeadsLista({ leads, etapas, encerradas, agora, onMover }: Props)
                 {dias === 0 ? "Atualizado hoje" : `Parado há ${dias} ${dias === 1 ? "dia" : "dias"}`}
               </p>
             ) : null}
+            {tipoEtapa(lead.etapa) === "venda" && Number(lead.valor_conversao ?? 0) > 0 ? (
+              <p className="mt-2 text-sm font-semibold text-emerald-300">Venda: {moeda(Number(lead.valor_conversao), lead.moeda ?? "BRL")}</p>
+            ) : null}
+            {tipoEtapa(lead.etapa) === "perdido" && lead.motivo_perda ? (
+              <p className="mt-2 text-xs text-rose-300">
+                Motivo: {MOTIVOS_PERDA.find((motivo) => motivo.chave === lead.motivo_perda)?.rotulo ?? lead.motivo_perda}
+              </p>
+            ) : null}
+            {lead.pausado_ia ? (
+              <p className="mt-2 text-xs font-medium text-violet-200">🙋 Você assumiu essa conversa</p>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => onTogglePausa(lead)}
+              className={`mt-2 min-h-10 w-full rounded-xl border px-3 py-2 text-sm ${
+                lead.pausado_ia ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-violet-500/30 bg-violet-500/10 text-violet-200"
+              }`}
+            >
+              {lead.pausado_ia ? "🤖 Devolver pra IA" : "🙋 Assumir conversa"}
+            </button>
             <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Mover para</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {etapas

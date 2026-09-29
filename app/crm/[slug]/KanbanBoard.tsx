@@ -501,6 +501,7 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
         encerradas={encerradas}
         agora={agora}
         onMover={moverPara}
+        onTogglePausa={handleTogglePausa}
       />
 
       <div className="hidden md:block">
