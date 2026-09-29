@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME, verifySessionToken } from "@/app/lib/authSession";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { interpretarMudancaEtapa, paramsRpcEtapa, traduzirErroEtapa } from "@/app/lib/leadEtapas";
+import { enviarVendaAoMeta } from "@/app/lib/metaVendaServidor";
 
 const N8N_WEBHOOK_URL = "https://n8n.hildeberto.digital/webhook/crm-lead-etapa1";
 const CAMPOS_RETORNO = "id,cliente_id,etapa,pausado_ia,valor_conversao,moeda,data_conversao,motivo_perda,atualizado_em";
@@ -56,6 +57,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ cl
   }
 
   const atualizado = data as { etapa: string };
+  if (atualizado.etapa === "fechado") {
+    await enviarVendaAoMeta(leadId);
+  }
   if (atualizado.etapa !== lead.etapa) {
     await fetch(N8N_WEBHOOK_URL, {
       method: "POST",

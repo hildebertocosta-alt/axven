@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { validateWebhookSecret } from "@/app/lib/webhookAuth";
 import { interpretarMudancaEtapa, paramsRpcEtapa, traduzirErroEtapa } from "@/app/lib/leadEtapas";
+import { enviarVendaAoMeta } from "@/app/lib/metaVendaServidor";
 
 // Chamado pelo workflow n8n do agente de IA depois de ler a conversa de WhatsApp
 // e decidir que o lead avançou de etapa no kanban. Continua aceitando as etapas
@@ -36,5 +37,8 @@ export async function POST(req: NextRequest) {
   }
 
   const lead = data as { id: string; nome: string; cliente_id: string; etapa: string };
+  if (lead.etapa === "fechado") {
+    await enviarVendaAoMeta(leadId);
+  }
   return NextResponse.json({ lead: { id: lead.id, nome: lead.nome, cliente_id: lead.cliente_id, etapa: lead.etapa } });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { ETAPA_VENDA, interpretarMudancaEtapa, paramsRpcEtapa, traduzirErroEtapa } from "@/app/lib/leadEtapas";
+import { enviarVendaAoMeta } from "@/app/lib/metaVendaServidor";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: leadId } = await params;
@@ -43,7 +44,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: falha.mensagem }, { status: falha.status });
   }
 
-  // Este endpoint registra o fechamento no CRM. Não envia CAPI aqui (entrega 3 da spec).
+  // Venda registrada: manda o Purchase com o valor para o Meta (nunca derruba a resposta).
+  if ((data as { etapa?: string } | null)?.etapa === "fechado") {
+    await enviarVendaAoMeta(leadId);
+  }
+
   const lead = data as Record<string, unknown>;
   return NextResponse.json({
     lead: {
