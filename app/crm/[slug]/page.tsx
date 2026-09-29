@@ -21,6 +21,7 @@ type ClienteRow = {
   id: string;
   nome: string;
   slug: string;
+  atendimento_ia: boolean;
 };
 
 async function fetchAllLeads(clienteId: string) {
@@ -50,7 +51,7 @@ export default async function CrmKanbanPage({ params }: Props) {
 
   const { data: cliente } = await supabaseAdmin
     .from("clientes")
-    .select("id, nome, slug")
+    .select("id, nome, slug, atendimento_ia")
     .eq("slug", slug)
     .single();
 
@@ -78,7 +79,7 @@ export default async function CrmKanbanPage({ params }: Props) {
       sidebarItems={portalSidebarItems(slug)}
     >
       <PortalTabs slug={slug} active="leads" />
-      <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={leads} etapas={(etapas ?? []) as EtapaCliente[]} />
+      <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={leads} etapas={(etapas ?? []) as EtapaCliente[]} atendimentoIa={(cliente as ClienteRow).atendimento_ia} />
     </AppShell>
   );
 }

@@ -153,7 +153,7 @@ function LeadCard({
         </span>
       ) : null}
 
-      {lead.pausado_ia ? (
+      {onTogglePausa && lead.pausado_ia ? (
         <span className="mt-2 inline-flex rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-200">
           🙋 Você assumiu essa conversa
         </span>
@@ -189,7 +189,7 @@ function KanbanColumn({
 }: {
   column: Column;
   leads: LeadRow[];
-  onTogglePausa: (lead: LeadRow) => void;
+  onTogglePausa?: (lead: LeadRow) => void;
   accessMode?: AccessMode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.key });
@@ -233,9 +233,10 @@ type KanbanBoardProps = {
   etapas: EtapaCliente[];
   accessMode?: AccessMode;
   clienteId?: string;
+  atendimentoIa?: boolean;
 };
 
-export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "portal", clienteId }: KanbanBoardProps) {
+export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "portal", clienteId, atendimentoIa = false }: KanbanBoardProps) {
   const columns = montarColunas(etapas);
   const etapasOrdenadas = ordenarEtapas(etapas);
   const encerradas = new Set(etapas.filter((etapa) => etapa.tipo === "venda" || etapa.tipo === "perdido").map((etapa) => etapa.chave));
@@ -501,7 +502,7 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
         encerradas={encerradas}
         agora={agora}
         onMover={moverPara}
-        onTogglePausa={handleTogglePausa}
+        onTogglePausa={atendimentoIa ? handleTogglePausa : undefined}
       />
 
       <div className="hidden md:block">
@@ -518,7 +519,7 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
                 key={column.key}
                 column={column}
                 leads={filtrarLeads(leads, filtro, encerradas, agora).filter((lead) => lead.etapa === column.key)}
-                onTogglePausa={handleTogglePausa}
+                onTogglePausa={atendimentoIa ? handleTogglePausa : undefined}
                 accessMode={accessMode}
               />
             ))}

@@ -67,5 +67,25 @@ test("lista do celular mantém Assumir conversa, valor da venda e motivo da perd
   assert.match(lista, /Devolver pra IA/);
   assert.match(lista, /valor_conversao/);
   assert.match(lista, /MOTIVOS_PERDA/);
-  assert.match(ler("app/crm/[slug]/KanbanBoard.tsx"), /onTogglePausa=\{handleTogglePausa\}\s*\n?\s*\/>|<LeadsLista[\s\S]*?onTogglePausa=\{handleTogglePausa\}/);
+  assert.match(ler("app/crm/[slug]/KanbanBoard.tsx"), /<LeadsLista[\s\S]*?onTogglePausa=\{atendimentoIa \? handleTogglePausa : undefined\}/);
+});
+
+test("botão Assumir conversa só aparece para cliente com atendimento de IA", () => {
+  const kanban = ler("app/crm/[slug]/KanbanBoard.tsx");
+  assert.match(kanban, /atendimentoIa \? handleTogglePausa : undefined/);
+  assert.doesNotMatch(kanban, /onTogglePausa=\{handleTogglePausa\}/);
+  const lista = ler("app/crm/[slug]/LeadsLista.tsx");
+  assert.match(lista, /onTogglePausa\?: \(lead: LeadRow\) => void/);
+  assert.match(lista, /\{onTogglePausa \? \(/);
+  for (const pagina of ["app/crm/[slug]/page.tsx", "app/clientes/[id]/crm/page.tsx"]) {
+    const src = ler(pagina);
+    assert.match(src, /atendimento_ia/, `${pagina}: não lê atendimento_ia`);
+    assert.match(src, /atendimentoIa=\{/, `${pagina}: não passa atendimentoIa`);
+  }
+  assert.match(ler("supabase/migrations/20260929200000_clientes_atendimento_ia.sql"), /add column if not exists atendimento_ia boolean not null default false/);
+});
+
+test("portal do cliente não mostra a busca interna do Hub", () => {
+  assert.match(ler("app/components/dashboard/Topbar.tsx"), /busca \? \(/);
+  assert.match(ler("app/components/dashboard/AppShell.tsx"), /busca=\{variant !== "portal"\}/);
 });

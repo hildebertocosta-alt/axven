@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
-type TopbarProps = { title: string; subtitle: string; actions?: ReactNode };
+type TopbarProps = { title: string; subtitle: string; actions?: ReactNode; busca?: boolean };
 
-export function Topbar({ title, subtitle, actions }: TopbarProps) {
+export function Topbar({ title, subtitle, actions, busca = true }: TopbarProps) {
   return (
     <header className="sticky top-0 z-30 flex min-h-[78px] flex-col gap-4 border-b border-white/[0.065] bg-[#08090d]/88 px-5 py-4 backdrop-blur-2xl lg:px-7 xl:flex-row xl:items-center xl:justify-between xl:px-9">
       <div>
@@ -13,11 +13,13 @@ export function Topbar({ title, subtitle, actions }: TopbarProps) {
         <h1 className="text-xl font-semibold tracking-[-0.025em] text-white xl:text-[22px]">{title}</h1>
       </div>
       <div className="flex items-center gap-2.5">
-        <label className="group flex h-10 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 text-xs text-zinc-600 transition focus-within:border-[#ff5a3c]/30 focus-within:bg-white/[0.04]">
-          <span className="text-base text-zinc-600">⌕</span>
-          <input className="w-36 bg-transparent text-zinc-300 outline-none placeholder:text-zinc-700 xl:w-44" placeholder="Buscar no Hub" aria-label="Buscar" />
-          <span className="hidden rounded-md border border-white/[0.06] px-1.5 py-0.5 text-[9px] text-zinc-700 xl:inline">⌘ K</span>
-        </label>
+        {busca ? (
+          <label className="group flex h-10 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 text-xs text-zinc-600 transition focus-within:border-[#ff5a3c]/30 focus-within:bg-white/[0.04]">
+            <span className="text-base text-zinc-600">⌕</span>
+            <input className="w-36 bg-transparent text-zinc-300 outline-none placeholder:text-zinc-700 xl:w-44" placeholder="Buscar no Hub" aria-label="Buscar" />
+            <span className="hidden rounded-md border border-white/[0.06] px-1.5 py-0.5 text-[9px] text-zinc-700 xl:inline">⌘ K</span>
+          </label>
+        ) : null}
         {actions}
       </div>
     </header>
