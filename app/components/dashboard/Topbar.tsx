@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 type TopbarProps = { title: string; subtitle: string; actions?: ReactNode; busca?: boolean };
@@ -5,12 +6,18 @@ type TopbarProps = { title: string; subtitle: string; actions?: ReactNode; busca
 export function Topbar({ title, subtitle, actions, busca = true }: TopbarProps) {
   return (
     <header className="sticky top-0 z-30 flex min-h-[78px] flex-col gap-4 border-b border-white/[0.065] bg-[#08090d]/88 px-5 py-4 backdrop-blur-2xl lg:px-7 xl:flex-row xl:items-center xl:justify-between xl:px-9">
-      <div>
+      <div className="flex items-center gap-3">
+        {/* O menu lateral (com o logo) some abaixo de lg: no celular o "A" da Axven aparece aqui. */}
+        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-[#ff5a3c]/20 bg-[#111117] lg:hidden">
+          <Image src="/axven-icon.png" alt="Axven Digital" fill sizes="40px" className="object-contain p-1.5" priority />
+        </div>
+        <div>
         <div className="mb-1 flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-[#ff5a3c] shadow-[0_0_9px_rgba(255,90,60,.8)]" />
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">{subtitle}</p>
         </div>
         <h1 className="text-xl font-semibold tracking-[-0.025em] text-white xl:text-[22px]">{title}</h1>
+        </div>
       </div>
       <div className="flex items-center gap-2.5">
         {busca ? (
