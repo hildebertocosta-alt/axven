@@ -25,8 +25,9 @@ import {
   type MotivoPerda,
   type TipoEtapa,
 } from "@/app/lib/leadEtapas";
-import { FILTRO_INICIAL, anunciosDosLeads, diasParado, estaParado, filtrarLeads, type FiltroLeads } from "@/app/lib/portalLeads";
+import { FILTRO_INICIAL, anunciosDosLeads, diasParado, estaParado, filtrarLeads, formatarChegada, type FiltroLeads } from "@/app/lib/portalLeads";
 import { LeadsLista } from "./LeadsLista";
+import { FichaLead } from "./FichaLead";
 
 export type Etapa = string;
 
@@ -47,6 +48,8 @@ export type LeadRow = {
   anuncio?: string | null;
   etapa_alterada_em?: string | null;
   plataforma?: string | null;
+  campanha?: string | null;
+  respostas_formulario?: unknown;
 };
 
 type Column = { key: string; label: string; tipo: TipoEtapa };
@@ -90,11 +93,13 @@ function LeadCard({
   lead,
   dragging = false,
   onTogglePausa,
+  onAbrir,
   accessMode = "portal",
 }: {
   lead: LeadRow;
   dragging?: boolean;
   onTogglePausa?: (lead: LeadRow) => void;
+  onAbrir?: (lead: LeadRow) => void;
   accessMode?: AccessMode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
@@ -117,7 +122,21 @@ function LeadCard({
         dragging ? "rotate-2 shadow-lg shadow-black/40" : ""
       }`}
     >
-      <p className="font-medium text-white">{lead.nome}</p>
+      {onAbrir ? (
+        <button
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAbrir(lead);
+          }}
+          className="text-left font-medium text-white underline-offset-2 hover:underline"
+        >
+          {lead.nome} <span className="text-zinc-500">›</span>
+        </button>
+      ) : (
+        <p className="font-medium text-white">{lead.nome}</p>
+      )}
       <p className="mt-1 text-xs text-zinc-400">{lead.telefone ?? "Sem telefone"}</p>
       {lead.origem ? (
         <span className="mt-3 inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-zinc-400">
@@ -125,6 +144,7 @@ function LeadCard({
         </span>
       ) : null}
 
+      <p className="mt-1 text-[11px] text-zinc-500">Chegou em {formatarChegada(lead.criado_em)}</p>
       {lead.anuncio ? <p className="mt-2 truncate text-[11px] text-zinc-400">📣 {lead.anuncio}</p> : null}
 
       {lead.etapa !== ETAPA_VENDA && lead.etapa !== ETAPA_PERDIDO ? (
@@ -185,11 +205,13 @@ function KanbanColumn({
   column,
   leads,
   onTogglePausa,
+  onAbrir,
   accessMode = "portal",
 }: {
   column: Column;
   leads: LeadRow[];
   onTogglePausa?: (lead: LeadRow) => void;
+  onAbrir?: (lead: LeadRow) => void;
   accessMode?: AccessMode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.key });
@@ -212,7 +234,7 @@ function KanbanColumn({
       >
         <SortableContext items={leads.map((lead) => lead.id)} strategy={verticalListSortingStrategy}>
           {leads.map((lead) => (
-            <LeadCard key={lead.id} lead={lead} onTogglePausa={onTogglePausa} accessMode={accessMode} />
+            <LeadCard key={lead.id} lead={lead} onTogglePausa={onTogglePausa} onAbrir={onAbrir} accessMode={accessMode} />
           ))}
         </SortableContext>
         {leads.length === 0 ? (
@@ -241,6 +263,7 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
   const etapasOrdenadas = ordenarEtapas(etapas);
   const encerradas = new Set(etapas.filter((etapa) => etapa.tipo === "venda" || etapa.tipo === "perdido").map((etapa) => etapa.chave));
   const [filtro, setFiltro] = useState<FiltroLeads>(FILTRO_INICIAL);
+  const [fichaLead, setFichaLead] = useState<LeadRow | null>(null);
   const agora = new Date();
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
   const [activeLead, setActiveLead] = useState<LeadRow | null>(null);
@@ -487,6 +510,33 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
           <option value="7">Chegaram nos últimos 7 dias</option>
           <option value="30">Chegaram nos últimos 30 dias</option>
         </select>
+        <label className="flex items-center gap-1 rounded-xl border border-white/10 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-400">
+          De
+          <input
+            type="date"
+            value={filtro.de}
+            onChange={(event) => setFiltro((atual) => ({ ...atual, de: event.target.value }))}
+            className="bg-transparent text-white outline-none"
+          />
+        </label>
+        <label className="flex items-center gap-1 rounded-xl border border-white/10 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-400">
+          até
+          <input
+            type="date"
+            value={filtro.ate}
+            onChange={(event) => setFiltro((atual) => ({ ...atual, ate: event.target.value }))}
+            className="bg-transparent text-white outline-none"
+          />
+        </label>
+        {filtro.de || filtro.ate ? (
+          <button
+            type="button"
+            onClick={() => setFiltro((atual) => ({ ...atual, de: "", ate: "" }))}
+            className="rounded-xl border border-white/10 px-3 py-2 text-sm text-zinc-300"
+          >
+            Limpar datas
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => setFiltro((atual) => ({ ...atual, soParados: !atual.soParados }))}
@@ -502,6 +552,7 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
         encerradas={encerradas}
         agora={agora}
         onMover={moverPara}
+        onAbrir={setFichaLead}
         onTogglePausa={atendimentoIa ? handleTogglePausa : undefined}
       />
 
@@ -520,6 +571,7 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
                 column={column}
                 leads={filtrarLeads(leads, filtro, encerradas, agora).filter((lead) => lead.etapa === column.key)}
                 onTogglePausa={atendimentoIa ? handleTogglePausa : undefined}
+                onAbrir={setFichaLead}
                 accessMode={accessMode}
               />
             ))}
@@ -527,6 +579,14 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
           <DragOverlay>{activeLead ? <LeadCard lead={activeLead} dragging accessMode={accessMode} /> : null}</DragOverlay>
         </DndContext>
       </div>
+
+      {fichaLead ? (
+        <FichaLead
+          lead={leads.find((item) => item.id === fichaLead.id) ?? fichaLead}
+          nomeEtapa={etapas.find((etapa) => etapa.chave === (leads.find((item) => item.id === fichaLead.id) ?? fichaLead).etapa)?.nome ?? fichaLead.etapa}
+          onFechar={() => setFichaLead(null)}
+        />
+      ) : null}
 
       {pendingClosure ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onPointerDown={(event) => event.stopPropagation()}>

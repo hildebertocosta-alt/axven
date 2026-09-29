@@ -89,3 +89,20 @@ test("portal do cliente não mostra a busca interna do Hub", () => {
   assert.match(ler("app/components/dashboard/Topbar.tsx"), /busca \? \(/);
   assert.match(ler("app/components/dashboard/AppShell.tsx"), /busca=\{variant !== "portal"\}/);
 });
+
+test("tocar no lead abre a ficha com as respostas do formulário, no portal e na tela interna", () => {
+  const ficha = ler("app/crm/[slug]/FichaLead.tsx");
+  assert.match(ficha, /formatarRespostas\(/);
+  assert.match(ficha, /linkWhatsApp\(/);
+  assert.match(ficha, /Abrir no WhatsApp/);
+  const kanban = ler("app/crm/[slug]/KanbanBoard.tsx");
+  assert.match(kanban, /<FichaLead/);
+  assert.match(kanban, /onAbrir/);
+  assert.match(ler("app/crm/[slug]/LeadsLista.tsx"), /onAbrir\(lead\)/);
+  assert.match(ler("app/crm/[slug]/LeadsLista.tsx"), /formatarChegada\(/);
+  assert.match(kanban, /formatarChegada\(/);
+  assert.match(kanban, /type="date"/);
+  for (const pagina of ["app/crm/[slug]/page.tsx", "app/clientes/[id]/crm/page.tsx"]) {
+    assert.match(ler(pagina), /respostas_formulario/, `${pagina}: não carrega as respostas`);
+  }
+});
