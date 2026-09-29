@@ -1,4 +1,6 @@
-export const QUALIFIED_STAGES = new Set(["qualificado", "agendado", "proposta_enviada", "fechado"]);
+// "agendado" e "proposta_enviada" continuam aqui porque a captação da própria Axven
+// (aquisicao_axven_leads) ainda usa essas etapas; "oportunidade" é a etapa nova dos clientes.
+export const QUALIFIED_STAGES = new Set(["qualificado", "oportunidade", "agendado", "proposta_enviada", "fechado"]);
 
 export type MetaInsightRow = {
   cliente_id: string; campaign_id: string; campaign_name: string | null;
