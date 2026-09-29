@@ -3,6 +3,7 @@ import { AppShell } from "../../components/dashboard/AppShell";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { KanbanBoard, type LeadRow } from "./KanbanBoard";
 import { LogoutButton } from "./LogoutButton";
+import type { EtapaCliente } from "@/app/lib/leadEtapas";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,7 +27,7 @@ async function fetchAllLeads(clienteId: string) {
   while (true) {
     const { data, error } = await supabaseAdmin
       .from("leads")
-      .select("id, nome, telefone, etapa, cliente_id, origem, criado_em, atualizado_em, pausado_ia, valor_conversao, moeda, data_conversao")
+      .select("id, nome, telefone, etapa, cliente_id, origem, criado_em, atualizado_em, pausado_ia, valor_conversao, moeda, data_conversao, motivo_perda")
       .eq("cliente_id", clienteId)
       .order("criado_em", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
@@ -54,7 +55,15 @@ export default async function CrmKanbanPage({ params }: Props) {
     notFound();
   }
 
-  const leads = await fetchAllLeads((cliente as ClienteRow).id);
+  const [leads, { data: etapas, error: etapasError }] = await Promise.all([
+    fetchAllLeads((cliente as ClienteRow).id),
+    supabaseAdmin
+      .from("cliente_etapas")
+      .select("chave, nome, tipo, ordem")
+      .eq("cliente_id", (cliente as ClienteRow).id)
+      .eq("ativo", true),
+  ]);
+  if (etapasError) throw etapasError;
 
   return (
     <AppShell
@@ -69,7 +78,7 @@ export default async function CrmKanbanPage({ params }: Props) {
         { label: "Disparo", href: `/crm/${slug}/disparo`, icon: "📣" },
       ]}
     >
-      <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={leads} />
+      <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={leads} etapas={(etapas ?? []) as EtapaCliente[]} />
     </AppShell>
   );
 }

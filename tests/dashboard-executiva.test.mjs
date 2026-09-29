@@ -68,3 +68,11 @@ test("campanha do CRM so e correlacionada por nome exato", () => {
   assert.equal(filterCrmByCampaignName(rows, "Campanha A").length, 1);
   assert.equal(filterCrmByCampaignName(rows, null).length, 2);
 });
+
+test("funil CRM conta a etapa nova oportunidade como qualificada, e perdido não", () => {
+  const result = summarizeCrm([
+    { cliente_id: "a", etapa: "oportunidade", qualificado: false, valor_conversao: null, moeda: null, campanha: null },
+    { cliente_id: "a", etapa: "perdido", qualificado: false, valor_conversao: null, moeda: null, campanha: null },
+  ]);
+  assert.equal(result.qualified, 1);
+});

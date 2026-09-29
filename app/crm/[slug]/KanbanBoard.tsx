@@ -15,8 +15,18 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/app/lib/supabase";
+import {
+  ETAPA_PERDIDO,
+  ETAPA_VENDA,
+  MOTIVOS_PERDA,
+  ordenarEtapas,
+  traduzirErroEtapa,
+  type EtapaCliente,
+  type MotivoPerda,
+  type TipoEtapa,
+} from "@/app/lib/leadEtapas";
 
-export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado" | "nao_fechou" | "desqualificado";
+export type Etapa = string;
 
 export type LeadRow = {
   id: string;
@@ -31,34 +41,35 @@ export type LeadRow = {
   valor_conversao?: number | null;
   moeda?: string | null;
   data_conversao?: string | null;
+  motivo_perda?: string | null;
 };
 
-type Column = { key: Etapa; label: string; accent: string };
+type Column = { key: string; label: string; tipo: TipoEtapa };
 
 type PendingClosure = {
   lead: LeadRow;
   etapaAnterior: Etapa;
 };
 
-const COLUMNS: Column[] = [
-  { key: "lead", label: "Lead", accent: "border-white/10 bg-zinc-950/80" },
-  { key: "qualificado", label: "Qualificado", accent: "border-amber-500/20 bg-amber-500/5" },
-  { key: "agendado", label: "Agendado", accent: "border-violet-500/20 bg-violet-500/5" },
-  { key: "proposta_enviada", label: "Proposta Enviada", accent: "border-sky-500/20 bg-sky-500/5" },
-  { key: "fechado", label: "Fechado", accent: "border-emerald-500/20 bg-emerald-500/5" },
-  { key: "nao_fechou", label: "Não Fechou", accent: "border-orange-500/20 bg-orange-500/5" },
-  { key: "desqualificado", label: "Desqualificado", accent: "border-rose-500/20 bg-rose-500/5" },
-];
-
-const badgeClasses: Record<Etapa, string> = {
-  lead: "border-white/10 bg-white/5 text-zinc-300",
-  qualificado: "border-amber-500/30 bg-amber-500/10 text-amber-200",
-  agendado: "border-violet-500/30 bg-violet-500/10 text-violet-200",
-  proposta_enviada: "border-sky-500/30 bg-sky-500/10 text-sky-200",
-  fechado: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-  nao_fechou: "border-orange-500/30 bg-orange-500/10 text-orange-200",
-  desqualificado: "border-rose-500/30 bg-rose-500/10 text-rose-200",
+const ACCENT_POR_TIPO: Record<TipoEtapa, string> = {
+  novo: "border-white/10 bg-zinc-950/80",
+  qualificacao: "border-amber-500/20 bg-amber-500/5",
+  oportunidade: "border-violet-500/20 bg-violet-500/5",
+  venda: "border-emerald-500/20 bg-emerald-500/5",
+  perdido: "border-rose-500/20 bg-rose-500/5",
 };
+
+const BADGE_POR_TIPO: Record<TipoEtapa, string> = {
+  novo: "border-white/10 bg-white/5 text-zinc-300",
+  qualificacao: "border-amber-500/30 bg-amber-500/10 text-amber-200",
+  oportunidade: "border-violet-500/30 bg-violet-500/10 text-violet-200",
+  venda: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+  perdido: "border-rose-500/30 bg-rose-500/10 text-rose-200",
+};
+
+function montarColunas(etapas: EtapaCliente[]): Column[] {
+  return ordenarEtapas(etapas).map((etapa) => ({ key: etapa.chave, label: etapa.nome, tipo: etapa.tipo }));
+}
 
 function formatCurrency(value: number, currency = "BRL") {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
@@ -109,13 +120,19 @@ function LeadCard({
         </span>
       ) : null}
 
-      {lead.etapa === "fechado" && Number(lead.valor_conversao ?? 0) > 0 ? (
+      {lead.etapa === ETAPA_VENDA && Number(lead.valor_conversao ?? 0) > 0 ? (
         <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
           <p className="text-[11px] uppercase tracking-wide text-emerald-300/70">Venda registrada</p>
           <p className="mt-1 font-semibold text-emerald-100">
             {formatCurrency(Number(lead.valor_conversao), lead.moeda ?? "BRL")}
           </p>
         </div>
+      ) : null}
+
+      {lead.etapa === ETAPA_PERDIDO && lead.motivo_perda ? (
+        <span className="mt-3 inline-flex rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[11px] text-rose-200">
+          {MOTIVOS_PERDA.find((motivo) => motivo.chave === lead.motivo_perda)?.rotulo ?? lead.motivo_perda}
+        </span>
       ) : null}
 
       {lead.pausado_ia ? (
@@ -163,7 +180,7 @@ function KanbanColumn({
     <div className={`flex flex-col ${accessMode === "internal" ? "min-w-0" : "min-w-[280px] flex-1"}`}>
       <div className="mb-3 flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-          <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${badgeClasses[column.key]}`}>
+          <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${BADGE_POR_TIPO[column.tipo]}`}>
             {column.label}
           </span>
         </div>
@@ -171,7 +188,7 @@ function KanbanColumn({
       </div>
       <div
         ref={setNodeRef}
-        className={`flex min-h-[200px] flex-1 flex-col gap-3 border p-3 transition ${accessMode === "internal" ? "rounded-2xl border-white/[0.07] bg-[#0d0e13]" : `rounded-3xl ${column.accent}`} ${
+        className={`flex min-h-[200px] flex-1 flex-col gap-3 border p-3 transition ${accessMode === "internal" ? "rounded-2xl border-white/[0.07] bg-[#0d0e13]" : `rounded-3xl ${ACCENT_POR_TIPO[column.tipo]}`} ${
           isOver ? "ring-2 ring-violet-500/40" : ""
         }`}
       >
@@ -195,11 +212,13 @@ type AccessMode = "internal" | "portal";
 type KanbanBoardProps = {
   clienteNome: string;
   initialLeads: LeadRow[];
+  etapas: EtapaCliente[];
   accessMode?: AccessMode;
   clienteId?: string;
 };
 
-export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", clienteId }: KanbanBoardProps) {
+export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "portal", clienteId }: KanbanBoardProps) {
+  const columns = montarColunas(etapas);
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
   const [activeLead, setActiveLead] = useState<LeadRow | null>(null);
   const [pendingClosure, setPendingClosure] = useState<PendingClosure | null>(null);
@@ -207,6 +226,11 @@ export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", 
   const [saleDate, setSaleDate] = useState(localToday());
   const [closing, setClosing] = useState(false);
   const [closureError, setClosureError] = useState<string | null>(null);
+  const [pendingLoss, setPendingLoss] = useState<PendingClosure | null>(null);
+  const [lossReason, setLossReason] = useState<MotivoPerda | "">("");
+  const [lossDetail, setLossDetail] = useState("");
+  const [lossError, setLossError] = useState<string | null>(null);
+  const [savingLoss, setSavingLoss] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -239,12 +263,12 @@ export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", 
     const draggedLead = leads.find((item) => item.id === active.id);
     if (!draggedLead) return;
 
-    const targetColumn = COLUMNS.find((col) => col.key === over.id)?.key
+    const targetColumn = columns.find((col) => col.key === over.id)?.key
       ?? leads.find((item) => item.id === over.id)?.etapa;
 
     if (!targetColumn || targetColumn === draggedLead.etapa) return;
 
-    if (targetColumn === "fechado") {
+    if (targetColumn === ETAPA_VENDA) {
       setPendingClosure({ lead: draggedLead, etapaAnterior: draggedLead.etapa });
       setSaleValue(draggedLead.valor_conversao ? String(draggedLead.valor_conversao) : "");
       setSaleDate(draggedLead.data_conversao ? draggedLead.data_conversao.slice(0, 10) : localToday());
@@ -252,11 +276,19 @@ export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", 
       return;
     }
 
+    if (targetColumn === ETAPA_PERDIDO) {
+      setPendingLoss({ lead: draggedLead, etapaAnterior: draggedLead.etapa });
+      setLossReason("");
+      setLossDetail("");
+      setLossError(null);
+      return;
+    }
+
     const previousLeads = leads;
     const updatedAt = new Date().toISOString();
 
     setLeads((prev) =>
-      prev.map((item) => (item.id === draggedLead.id ? { ...item, etapa: targetColumn, atualizado_em: updatedAt } : item)),
+      prev.map((item) => (item.id === draggedLead.id ? { ...item, etapa: targetColumn, motivo_perda: null, atualizado_em: updatedAt } : item)),
     );
 
     const error = accessMode === "internal"
@@ -302,7 +334,7 @@ export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", 
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
-          ...(accessMode === "internal" ? { etapa: "fechado" } : {}),
+          ...(accessMode === "internal" ? { etapa: ETAPA_VENDA } : {}),
           valor: normalizedValue,
           moeda: "BRL",
           data_conversao: `${saleDate}T12:00:00-03:00`,
@@ -318,7 +350,7 @@ export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", 
           item.id === pendingClosure.lead.id
             ? {
                 ...item,
-                etapa: "fechado",
+                etapa: ETAPA_VENDA,
                 valor_conversao: Number(leadAtualizado.valor_conversao ?? normalizedValue),
                 moeda: String(leadAtualizado.moeda ?? "BRL"),
                 data_conversao: String(leadAtualizado.data_conversao ?? `${saleDate}T12:00:00-03:00`),
@@ -329,7 +361,7 @@ export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", 
       );
 
       if (accessMode === "portal") {
-        notifyStageChange(pendingClosure.lead, pendingClosure.etapaAnterior, "fechado");
+        notifyStageChange(pendingClosure.lead, pendingClosure.etapaAnterior, ETAPA_VENDA);
       }
       setPendingClosure(null);
       setSaleValue("");
@@ -338,6 +370,46 @@ export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", 
     } finally {
       setClosing(false);
     }
+  }
+
+  async function confirmLoss() {
+    if (!pendingLoss || savingLoss) return;
+    if (!lossReason) {
+      setLossError("Escolha o motivo da perda.");
+      return;
+    }
+
+    setSavingLoss(true);
+    setLossError(null);
+    const detalhe = lossDetail.trim() || null;
+    const atualizadoEm = new Date().toISOString();
+
+    const error = accessMode === "internal"
+      ? await updateInternalLead(pendingLoss.lead.id, { etapa: ETAPA_PERDIDO, motivo: lossReason, motivo_detalhe: detalhe })
+      : (await supabase
+          .from("leads")
+          .update({ etapa: ETAPA_PERDIDO, motivo_perda: lossReason, motivo_perda_detalhe: detalhe, atualizado_em: atualizadoEm })
+          .eq("id", pendingLoss.lead.id)).error;
+
+    setSavingLoss(false);
+
+    if (error) {
+      setLossError(accessMode === "internal" ? error.message : traduzirErroEtapa(error.message).mensagem);
+      return;
+    }
+
+    setLeads((prev) =>
+      prev.map((item) =>
+        item.id === pendingLoss.lead.id
+          ? { ...item, etapa: ETAPA_PERDIDO, motivo_perda: lossReason, atualizado_em: atualizadoEm }
+          : item,
+      ),
+    );
+
+    if (accessMode === "portal") {
+      notifyStageChange(pendingLoss.lead, pendingLoss.etapaAnterior, ETAPA_PERDIDO);
+    }
+    setPendingLoss(null);
   }
 
   async function handleTogglePausa(lead: LeadRow) {
@@ -365,7 +437,7 @@ export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", 
         onDragCancel={() => setActiveLead(null)}
       >
         <div className={accessMode === "internal" ? "grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" : "flex gap-4 overflow-x-auto pb-2"}>
-          {COLUMNS.map((column) => (
+          {columns.map((column) => (
             <KanbanColumn
               key={column.key}
               column={column}
@@ -428,6 +500,67 @@ export function KanbanBoard({ clienteNome, initialLeads, accessMode = "portal", 
                 className="flex-1 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-zinc-950 hover:bg-emerald-400 disabled:opacity-50"
               >
                 {closing ? "Salvando..." : "Confirmar venda"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingLoss ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onPointerDown={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-md rounded-3xl border border-rose-500/20 bg-zinc-950 p-6 shadow-2xl shadow-black/60">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-300">Registrar perda</p>
+            <h3 className="mt-2 text-xl font-semibold text-white">{pendingLoss.lead.nome}</h3>
+            <p className="mt-2 text-sm text-zinc-400">Saber por que o lead não fechou mostra onde melhorar.</p>
+
+            <div className="mt-5 space-y-4">
+              <label className="block text-sm text-zinc-300">
+                <span className="mb-2 block">Motivo da perda</span>
+                <select
+                  value={lossReason}
+                  onChange={(event) => setLossReason(event.target.value as MotivoPerda | "")}
+                  className="w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-rose-500/40"
+                >
+                  <option value="">Escolha um motivo</option>
+                  {MOTIVOS_PERDA.map((motivo) => (
+                    <option key={motivo.chave} value={motivo.chave}>{motivo.rotulo}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm text-zinc-300">
+                <span className="mb-2 block">Detalhe (opcional)</span>
+                <textarea
+                  value={lossDetail}
+                  onChange={(event) => setLossDetail(event.target.value)}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="Ex.: achou caro, vai pensar"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-rose-500/40"
+                />
+              </label>
+            </div>
+
+            {lossError ? <p className="mt-4 text-sm text-rose-300">{lossError}</p> : null}
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                disabled={savingLoss}
+                onClick={() => {
+                  setPendingLoss(null);
+                  setLossError(null);
+                }}
+                className="flex-1 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-zinc-300 hover:bg-white/5 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={savingLoss}
+                onClick={confirmLoss}
+                className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold text-zinc-950 hover:bg-rose-400 disabled:opacity-50"
+              >
+                {savingLoss ? "Salvando..." : "Confirmar perda"}
               </button>
             </div>
           </div>

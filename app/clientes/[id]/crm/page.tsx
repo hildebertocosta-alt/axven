@@ -5,6 +5,7 @@ import { AppShell } from "@/app/components/dashboard/AppShell";
 import { KanbanBoard, type LeadRow } from "@/app/crm/[slug]/KanbanBoard";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { AUTH_COOKIE_NAME, verifySessionToken } from "@/app/lib/authSession";
+import type { EtapaCliente } from "@/app/lib/leadEtapas";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,7 +19,7 @@ async function fetchAllLeads(clienteId: string) {
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await supabaseAdmin
       .from("leads")
-      .select("id,nome,telefone,etapa,cliente_id,origem,criado_em,atualizado_em,pausado_ia,valor_conversao,moeda,data_conversao")
+      .select("id,nome,telefone,etapa,cliente_id,origem,criado_em,atualizado_em,pausado_ia,valor_conversao,moeda,data_conversao,motivo_perda")
       .eq("cliente_id", clienteId)
       .order("criado_em", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
@@ -51,13 +52,20 @@ export default async function ClienteCrmInternoPage({ params }: Props) {
 
   if (!cliente || cliente.status_pagamento === "cancelado") notFound();
 
-  const leads = await fetchAllLeads(cliente.id);
+  const [leads, { data: etapasData, error: etapasError }] = await Promise.all([
+    fetchAllLeads(cliente.id),
+    supabaseAdmin.from("cliente_etapas").select("chave,nome,tipo,ordem").eq("cliente_id", cliente.id).eq("ativo", true),
+  ]);
+  if (etapasError) throw etapasError;
+  const etapas = (etapasData ?? []) as EtapaCliente[];
+  const chavesOportunidade = new Set(etapas.filter((etapa) => etapa.tipo === "oportunidade").map((etapa) => etapa.chave));
+  const nomeOportunidade = etapas.find((etapa) => etapa.chave === "oportunidade")?.nome ?? "Oportunidades";
   const closedLeads = leads.filter((lead) => lead.etapa === "fechado");
   const revenue = closedLeads.reduce((total, lead) => total + Number(lead.valor_conversao ?? 0), 0);
   const metrics = [
     { label: "Leads", value: leads.length, hint: "Total no pipeline" },
     { label: "Qualificados", value: leads.filter((lead) => lead.etapa === "qualificado").length, hint: "Em qualificação" },
-    { label: "Agendados", value: leads.filter((lead) => lead.etapa === "agendado").length, hint: "Com agenda confirmada" },
+    { label: nomeOportunidade, value: leads.filter((lead) => chavesOportunidade.has(lead.etapa)).length, hint: "Perto de fechar" },
     { label: "Fechados", value: closedLeads.length, hint: formatCurrency(revenue), accent: true },
   ];
 
@@ -102,7 +110,7 @@ export default async function ClienteCrmInternoPage({ params }: Props) {
             </div>
             <p className="text-xs text-zinc-600">Arraste um card para atualizar a etapa</p>
           </div>
-          <KanbanBoard clienteNome={cliente.nome} clienteId={cliente.id} accessMode="internal" initialLeads={leads} />
+          <KanbanBoard clienteNome={cliente.nome} clienteId={cliente.id} accessMode="internal" initialLeads={leads} etapas={etapas} />
         </section>
       </div>
     </AppShell>

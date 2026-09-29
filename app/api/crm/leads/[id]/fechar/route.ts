@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
+import { ETAPA_VENDA, interpretarMudancaEtapa, paramsRpcEtapa, traduzirErroEtapa } from "@/app/lib/leadEtapas";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: leadId } = await params;
@@ -26,52 +27,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const body = await req.json().catch(() => null);
-  const valor = Number(body?.valor);
-  const moeda = typeof body?.moeda === "string" ? body.moeda.trim().toUpperCase() : "BRL";
-  const dataConversaoRaw = typeof body?.data_conversao === "string" ? body.data_conversao.trim() : "";
-
-  if (!Number.isFinite(valor) || valor <= 0) {
-    return NextResponse.json({ error: "valor da venda inválido" }, { status: 400 });
+  const resultado = interpretarMudancaEtapa({ ...(body && typeof body === "object" ? body : {}), etapa: ETAPA_VENDA });
+  if (!resultado.ok) {
+    return NextResponse.json({ error: resultado.erro }, { status: 400 });
   }
 
-  if (!/^[A-Z]{3}$/.test(moeda)) {
-    return NextResponse.json({ error: "moeda inválida" }, { status: 400 });
-  }
-
-  const dataConversao = new Date(dataConversaoRaw);
-  if (!dataConversaoRaw || Number.isNaN(dataConversao.getTime())) {
-    return NextResponse.json({ error: "data da venda inválida" }, { status: 400 });
-  }
-
-  const { data: lead } = await supabaseAdmin
-    .from("leads")
-    .select("id, cliente_id")
-    .eq("id", leadId)
-    .single();
-
-  if (!lead || lead.cliente_id !== crmUsuario.cliente_id) {
-    return NextResponse.json({ error: "lead não encontrado" }, { status: 404 });
-  }
-
-  const atualizadoEm = new Date().toISOString();
-  const { data: leadAtualizado, error } = await supabaseAdmin
-    .from("leads")
-    .update({
-      etapa: "fechado",
-      valor_conversao: valor,
-      moeda,
-      data_conversao: dataConversao.toISOString(),
-      atualizado_em: atualizadoEm,
-    })
-    .eq("id", leadId)
-    .select("id, cliente_id, etapa, valor_conversao, moeda, data_conversao, atualizado_em")
-    .single();
+  // A RPC só encontra o lead se ele for do cliente do usuário logado (p_cliente_id).
+  const { data, error } = await supabaseAdmin.rpc(
+    "atualizar_etapa_lead_v1",
+    paramsRpcEtapa(leadId, crmUsuario.cliente_id, resultado.pedido, "portal", userData.user.id),
+  );
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const falha = traduzirErroEtapa(error.message);
+    return NextResponse.json({ error: falha.mensagem }, { status: falha.status });
   }
 
-  // Este endpoint registra o fechamento no CRM. Não envia CAPI aqui.
-  // A conversão Meta permanece dependente da validação específica de atribuição e deduplicação.
-  return NextResponse.json({ lead: leadAtualizado });
+  // Este endpoint registra o fechamento no CRM. Não envia CAPI aqui (entrega 3 da spec).
+  const lead = data as Record<string, unknown>;
+  return NextResponse.json({
+    lead: {
+      id: lead.id,
+      cliente_id: lead.cliente_id,
+      etapa: lead.etapa,
+      valor_conversao: lead.valor_conversao,
+      moeda: lead.moeda,
+      data_conversao: lead.data_conversao,
+      atualizado_em: lead.atualizado_em,
+    },
+  });
 }

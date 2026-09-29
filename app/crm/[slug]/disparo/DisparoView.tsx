@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
 
-export type Etapa = "lead" | "qualificado" | "agendado" | "proposta_enviada" | "fechado" | "desqualificado";
+export type Etapa = "lead" | "qualificado" | "oportunidade" | "fechado" | "perdido";
 
 export type LeadParaFiltro = {
   id: string;
@@ -44,15 +44,14 @@ type CardComposer = {
 const MAX_CARDS = 10;
 
 const ETAPAS: { key: Etapa; label: string }[] = [
-  { key: "lead", label: "Lead" },
+  { key: "lead", label: "Novo" },
   { key: "qualificado", label: "Qualificado" },
-  { key: "agendado", label: "Agendado" },
-  { key: "proposta_enviada", label: "Proposta Enviada" },
-  { key: "fechado", label: "Fechado" },
-  { key: "desqualificado", label: "Desqualificado" },
+  { key: "oportunidade", label: "Oportunidade" },
+  { key: "fechado", label: "Venda" },
+  { key: "perdido", label: "Perdido" },
 ];
 
-const ETAPAS_PADRAO: Etapa[] = ["lead", "qualificado", "agendado", "proposta_enviada"];
+const ETAPAS_PADRAO: Etapa[] = ["lead", "qualificado", "oportunidade"];
 
 const statusLabel: Record<DisparoStatus, string> = {
   em_andamento: "Em andamento",
