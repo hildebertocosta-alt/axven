@@ -119,6 +119,8 @@ test("nome da etapa fica fixo no topo da coluna ao rolar o quadro, e há busca p
   assert.match(kanban, /max-h-\[calc\(100dvh-/, "quadro rola por dentro para o cabeçalho ficar preso");
   assert.match(kanban, /placeholder="Buscar por nome ou telefone"/);
   // Colunas curtas precisam esticar até a altura da maior; senão o nome delas some ao rolar.
-  const quadro = kanban.match(/max-h-\[calc\(100dvh-[\s\S]*?`\}/)[0];
-  assert.doesNotMatch(quadro, /items-start/, "colunas não podem ficar com a altura do próprio conteúdo");
+  // A área que rola não pode ser o próprio flex/grid (as colunas esticariam só até a altura visível):
+  // ela envolve uma camada interna, e é essa camada que cresce com a coluna mais cheia.
+  assert.match(kanban, /<div className="max-h-\[calc\(100dvh-12rem\)\] overflow-auto pb-2">\s*<div\s+className=\{/);
+  assert.doesNotMatch(kanban, /items-start gap-(3|4)/, "colunas não podem ficar com a altura do próprio conteúdo");
 });

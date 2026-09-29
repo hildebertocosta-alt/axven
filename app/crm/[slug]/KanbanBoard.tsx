@@ -574,22 +574,23 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
           onDragEnd={handleDragEnd}
           onDragCancel={() => setActiveLead(null)}
         >
-          <div
-            className={`max-h-[calc(100dvh-12rem)] overflow-auto pb-2 ${
-              // Alinhamento padrão (stretch): todas as colunas esticam até a altura da maior, e o nome de cada etapa fica preso ao rolar.
-              accessMode === "internal" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" : "flex gap-4"
-            }`}
-          >
-            {columns.map((column) => (
-              <KanbanColumn
-                key={column.key}
-                column={column}
-                leads={filtrarLeads(leads, filtro, encerradas, agora).filter((lead) => lead.etapa === column.key)}
-                onTogglePausa={atendimentoIa ? handleTogglePausa : undefined}
-                onAbrir={setFichaLead}
-                accessMode={accessMode}
-              />
-            ))}
+          {/* A área de fora rola; a camada de dentro cresce com a coluna mais cheia e todas as colunas esticam até ela,
+              então o nome de cada etapa fica preso no topo enquanto se rola. */}
+          <div className="max-h-[calc(100dvh-12rem)] overflow-auto pb-2">
+            <div
+              className={accessMode === "internal" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" : "flex min-w-full gap-4"}
+            >
+              {columns.map((column) => (
+                <KanbanColumn
+                  key={column.key}
+                  column={column}
+                  leads={filtrarLeads(leads, filtro, encerradas, agora).filter((lead) => lead.etapa === column.key)}
+                  onTogglePausa={atendimentoIa ? handleTogglePausa : undefined}
+                  onAbrir={setFichaLead}
+                  accessMode={accessMode}
+                />
+              ))}
+            </div>
           </div>
           <DragOverlay>{activeLead ? <LeadCard lead={activeLead} dragging accessMode={accessMode} /> : null}</DragOverlay>
         </DndContext>
