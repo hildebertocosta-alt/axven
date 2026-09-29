@@ -34,3 +34,18 @@ test("nenhuma rota mantém a lista fixa das etapas antigas", () => {
   }
   assert.match(ler("app/api/crm/disparos/route.ts"), /\["lead", "qualificado", "oportunidade", "fechado", "perdido"\]/);
 });
+
+test("Kanban desenha as colunas a partir das etapas do cliente e pede motivo da perda", () => {
+  const kanban = ler("app/crm/[slug]/KanbanBoard.tsx");
+  assert.match(kanban, /etapas: EtapaCliente\[\]/);
+  assert.match(kanban, /ordenarEtapas\(/);
+  assert.match(kanban, /Motivo da perda/);
+  assert.doesNotMatch(kanban, /"proposta_enviada"|"desqualificado"|"nao_fechou"/);
+  for (const pagina of ["app/crm/[slug]/page.tsx", "app/clientes/[id]/crm/page.tsx"]) {
+    const src = ler(pagina);
+    assert.match(src, /from\("cliente_etapas"\)/, `${pagina}: não carrega as etapas`);
+    assert.match(src, /motivo_perda/, `${pagina}: não carrega o motivo da perda`);
+    assert.match(src, /etapas=\{/, `${pagina}: não passa as etapas ao Kanban`);
+  }
+  assert.doesNotMatch(ler("app/crm/[slug]/disparo/DisparoView.tsx"), /"proposta_enviada"|"desqualificado"/);
+});
