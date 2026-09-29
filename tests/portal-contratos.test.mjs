@@ -49,3 +49,23 @@ test("Conversas e Disparo saíram do portal (redirecionam para Leads)", () => {
     assert.match(src, /redirect\(`\/crm\/\$\{slug\}`\)/);
   }
 });
+
+test("portal esconde leads de teste, pagina as consultas e mostra o ranking inteiro", () => {
+  const resultado = ler("app/crm/[slug]/resultado/page.tsx");
+  assert.match(resultado, /semLeadsDeTeste\(/);
+  assert.doesNotMatch(resultado, /\.limit\(/, "limit não passa do teto de 1000 linhas do Supabase: paginar com range");
+  assert.match(resultado, /\.range\(/);
+  assert.doesNotMatch(resultado, /\.slice\(0, 10\)/, "ranking não pode esconder anúncios com gasto e sem lead");
+  const leads = ler("app/crm/[slug]/page.tsx");
+  assert.match(leads, /semLeadsDeTeste\(/);
+});
+
+test("lista do celular mantém Assumir conversa, valor da venda e motivo da perda", () => {
+  const lista = ler("app/crm/[slug]/LeadsLista.tsx");
+  assert.match(lista, /onTogglePausa/);
+  assert.match(lista, /Assumir conversa/);
+  assert.match(lista, /Devolver pra IA/);
+  assert.match(lista, /valor_conversao/);
+  assert.match(lista, /MOTIVOS_PERDA/);
+  assert.match(ler("app/crm/[slug]/KanbanBoard.tsx"), /onTogglePausa=\{handleTogglePausa\}\s*\n?\s*\/>|<LeadsLista[\s\S]*?onTogglePausa=\{handleTogglePausa\}/);
+});

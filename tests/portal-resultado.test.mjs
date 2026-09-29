@@ -87,3 +87,9 @@ test("ranking por anúncio: receita, vendas e custo por venda; anúncio sem lead
     { chave: "A3", nome: "V03", leads: 0, vendas: 0, receita: 0, investimento: 50, custoPorVenda: null },
   ]);
 });
+
+test("leads marcados como teste ficam fora do portal do cliente", async () => {
+  const { semLeadsDeTeste } = await import("../app/lib/portalResultado.ts");
+  const leads = [{ id: "1", plataforma: "teste" }, { id: "2", plataforma: null }, { id: "3", plataforma: "whatsapp" }, { id: "4" }];
+  assert.deepEqual(semLeadsDeTeste(leads).map((l) => l.id), ["2", "3", "4"]);
+});

@@ -8,6 +8,7 @@ import {
   rankingAnuncios,
   resolverPeriodo,
   resumoResultado,
+  semLeadsDeTeste,
   type GastoAnuncio,
   type LeadResultado,
 } from "@/app/lib/portalResultado";
@@ -27,6 +28,18 @@ const moeda = (valor: number | null) =>
   valor === null ? "—" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(valor);
 const inteiro = (valor: number) => new Intl.NumberFormat("pt-BR").format(valor);
 
+// O Supabase devolve no máximo 1000 linhas por consulta (sem erro): lê em páginas.
+const PAGINA = 1000;
+async function lerTudo<T>(consulta: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const linhas: T[] = [];
+  for (let de = 0; ; de += PAGINA) {
+    const { data, error } = await consulta(de, de + PAGINA - 1);
+    if (error) throw error;
+    linhas.push(...(data ?? []));
+    if (!data || data.length < PAGINA) return linhas;
+  }
+}
+
 function hojeEmSaoPaulo() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
@@ -41,30 +54,37 @@ export default async function ResultadoPage({ params, searchParams }: Props) {
   const inicioTs = `${periodo.inicio}T00:00:00-03:00`;
   const fimTs = `${periodo.fim}T23:59:59.999-03:00`;
 
-  const [etapasRes, leadsRes, gastosRes] = await Promise.all([
+  type LeadBruto = { id: string; etapa: string; valor_conversao: number | null; anuncio_source_id: string | null; anuncio: string | null; plataforma: string | null };
+  type GastoBruto = { ad_id: string; ad_name: string | null; spend: number | null };
+
+  const [etapasRes, leadsTodos, gastosBrutos] = await Promise.all([
     supabaseAdmin.from("cliente_etapas").select("chave, nome, tipo, ordem").eq("cliente_id", cliente.id).eq("ativo", true),
-    supabaseAdmin
-      .from("leads")
-      .select("id, etapa, valor_conversao, anuncio_source_id, anuncio")
-      .eq("cliente_id", cliente.id)
-      .gte("criado_em", inicioTs)
-      .lte("criado_em", fimTs)
-      .limit(5000),
-    supabaseAdmin
-      .from("meta_ads_insights_daily")
-      .select("ad_id, ad_name, spend")
-      .eq("cliente_id", cliente.id)
-      .gte("metric_date", periodo.inicio)
-      .lte("metric_date", periodo.fim)
-      .limit(20000),
+    lerTudo<LeadBruto>((de, ate) =>
+      supabaseAdmin
+        .from("leads")
+        .select("id, etapa, valor_conversao, anuncio_source_id, anuncio, plataforma")
+        .eq("cliente_id", cliente.id)
+        .gte("criado_em", inicioTs)
+        .lte("criado_em", fimTs)
+        .order("id")
+        .range(de, ate),
+    ),
+    lerTudo<GastoBruto>((de, ate) =>
+      supabaseAdmin
+        .from("meta_ads_insights_daily")
+        .select("ad_id, ad_name, spend")
+        .eq("cliente_id", cliente.id)
+        .gte("metric_date", periodo.inicio)
+        .lte("metric_date", periodo.fim)
+        .order("id")
+        .range(de, ate),
+    ),
   ]);
   if (etapasRes.error) throw etapasRes.error;
-  if (leadsRes.error) throw leadsRes.error;
-  if (gastosRes.error) throw gastosRes.error;
 
   const etapas = ordenarEtapas((etapasRes.data ?? []) as EtapaCliente[]);
   const chavesPerdido = new Set(etapas.filter((etapa) => etapa.tipo === "perdido").map((etapa) => etapa.chave));
-  const leadsBrutos = leadsRes.data ?? [];
+  const leadsBrutos = semLeadsDeTeste(leadsTodos);
 
   const idsPerdidos = leadsBrutos.filter((lead) => chavesPerdido.has(lead.etapa)).map((lead) => lead.id);
   const antesDaPerda = new Map<string, string | null>();
@@ -90,7 +110,7 @@ export default async function ResultadoPage({ params, searchParams }: Props) {
   }));
 
   const gastoPorAnuncio = new Map<string, GastoAnuncio>();
-  for (const linha of gastosRes.data ?? []) {
+  for (const linha of gastosBrutos) {
     const atual = gastoPorAnuncio.get(linha.ad_id) ?? { adId: linha.ad_id, adNome: linha.ad_name, gasto: 0 };
     atual.gasto += Number(linha.spend ?? 0);
     gastoPorAnuncio.set(linha.ad_id, atual);
@@ -99,7 +119,7 @@ export default async function ResultadoPage({ params, searchParams }: Props) {
 
   const resumo = resumoResultado(etapas, leads, gastos);
   const funilCliente = funil(etapas, leads);
-  const ranking = rankingAnuncios(etapas, leads, gastos).slice(0, 10);
+  const ranking = rankingAnuncios(etapas, leads, gastos);
 
   const cards = [
     { rotulo: "Investimento", valor: moeda(resumo.investimento) },

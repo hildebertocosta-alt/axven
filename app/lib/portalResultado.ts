@@ -35,6 +35,11 @@ function formatarData(texto: string): string {
 
 const dinheiro = (valor: number) => Math.round(valor * 100) / 100;
 
+// Leads de teste (plataforma = 'teste') ficam fora do que o cliente vê: não são clientes reais.
+export function semLeadsDeTeste<T extends { plataforma?: string | null }>(leads: T[]): T[] {
+  return leads.filter((lead) => lead.plataforma !== "teste");
+}
+
 export function resolverPeriodo(params: { periodo?: string; inicio?: string; fim?: string }, hoje: string): Periodo {
   if (params.periodo === "7d") return { chave: "7d", inicio: somarDias(hoje, -6), fim: hoje, rotulo: "Últimos 7 dias" };
   if (params.periodo === "30d") return { chave: "30d", inicio: somarDias(hoje, -29), fim: hoje, rotulo: "Últimos 30 dias" };

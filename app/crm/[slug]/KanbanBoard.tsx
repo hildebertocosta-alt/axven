@@ -46,6 +46,7 @@ export type LeadRow = {
   motivo_perda?: string | null;
   anuncio?: string | null;
   etapa_alterada_em?: string | null;
+  plataforma?: string | null;
 };
 
 type Column = { key: string; label: string; tipo: TipoEtapa };
