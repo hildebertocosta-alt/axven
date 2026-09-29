@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { dataLembrete, limiteParado, linkParados, textoLembrete } from "../app/lib/lembreteParados.ts";
+import { estaParado } from "../app/lib/portalLeads.ts";
 
 test("texto do lembrete com plural e singular", () => {
   const link = linkParados("camilo-imoveis");
@@ -17,6 +18,14 @@ test("data do lembrete é o dia de Brasília", () => {
   assert.equal(dataLembrete(new Date("2026-09-30T11:30:00Z")), "2026-09-30");
 });
 
-test("limite de parado é 3 dias antes", () => {
-  assert.equal(limiteParado(new Date("2026-09-30T11:30:00.000Z")), "2026-09-27T11:30:00.000Z");
+test("limite do lembrete conta exatamente os mesmos parados que o filtro do painel", () => {
+  const agora = new Date("2026-09-30T11:30:00.000Z");
+  const limite = limiteParado(agora);
+  const encerradas = new Set(["fechado", "perdido"]);
+  for (const horas of [71, 72, 84, 94.5, 95.9, 96, 97, 200]) {
+    const desde = new Date(agora.getTime() - horas * 3600 * 1000).toISOString();
+    const lead = { etapa: "lead", criado_em: desde, etapa_alterada_em: desde };
+    // o cron conta com etapa_alterada_em <= limite
+    assert.equal(desde <= limite, estaParado(lead, encerradas, agora), `${horas}h`);
+  }
 });

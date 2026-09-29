@@ -16,7 +16,7 @@ async function contarParados(clienteId: string, agora: Date) {
     .from("leads")
     .select("id", { count: "exact", head: true })
     .eq("cliente_id", clienteId)
-    .lt("etapa_alterada_em", limiteParado(agora))
+    .lte("etapa_alterada_em", limiteParado(agora))
     .or("plataforma.is.null,plataforma.neq.teste");
   if (encerradas.length > 0) consulta = consulta.not("etapa", "in", `(${encerradas.join(",")})`);
   const { count, error } = await consulta;

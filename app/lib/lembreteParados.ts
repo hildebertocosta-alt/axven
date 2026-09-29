@@ -18,6 +18,7 @@ export function dataLembrete(agora: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(agora);
 }
 
+// Mesma regra do painel (estaParado: dias inteiros > 3): parado é quem mudou de etapa até 4 dias atrás (usar com <=).
 export function limiteParado(agora: Date): string {
-  return new Date(agora.getTime() - 3 * DIA_MS).toISOString();
+  return new Date(agora.getTime() - 4 * DIA_MS).toISOString();
 }
