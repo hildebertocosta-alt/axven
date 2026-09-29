@@ -25,6 +25,8 @@ import {
   type MotivoPerda,
   type TipoEtapa,
 } from "@/app/lib/leadEtapas";
+import { FILTRO_INICIAL, anunciosDosLeads, diasParado, estaParado, filtrarLeads, type FiltroLeads } from "@/app/lib/portalLeads";
+import { LeadsLista } from "./LeadsLista";
 
 export type Etapa = string;
 
@@ -42,6 +44,9 @@ export type LeadRow = {
   moeda?: string | null;
   data_conversao?: string | null;
   motivo_perda?: string | null;
+  anuncio?: string | null;
+  etapa_alterada_em?: string | null;
+  plataforma?: string | null;
 };
 
 type Column = { key: string; label: string; tipo: TipoEtapa };
@@ -118,6 +123,19 @@ function LeadCard({
         <span className="mt-3 inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-zinc-400">
           {lead.origem}
         </span>
+      ) : null}
+
+      {lead.anuncio ? <p className="mt-2 truncate text-[11px] text-zinc-400">📣 {lead.anuncio}</p> : null}
+
+      {lead.etapa !== ETAPA_VENDA && lead.etapa !== ETAPA_PERDIDO ? (
+        (() => {
+          const dias = diasParado(lead.etapa_alterada_em ?? lead.criado_em, new Date());
+          return (
+            <p className={`mt-1 text-[11px] ${dias > 3 ? "font-semibold text-amber-300" : "text-zinc-500"}`}>
+              {dias === 0 ? "Atualizado hoje" : `Parado há ${dias} ${dias === 1 ? "dia" : "dias"}`}
+            </p>
+          );
+        })()
       ) : null}
 
       {lead.etapa === ETAPA_VENDA && Number(lead.valor_conversao ?? 0) > 0 ? (
@@ -219,6 +237,10 @@ type KanbanBoardProps = {
 
 export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "portal", clienteId }: KanbanBoardProps) {
   const columns = montarColunas(etapas);
+  const etapasOrdenadas = ordenarEtapas(etapas);
+  const encerradas = new Set(etapas.filter((etapa) => etapa.tipo === "venda" || etapa.tipo === "perdido").map((etapa) => etapa.chave));
+  const [filtro, setFiltro] = useState<FiltroLeads>(FILTRO_INICIAL);
+  const agora = new Date();
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
   const [activeLead, setActiveLead] = useState<LeadRow | null>(null);
   const [pendingClosure, setPendingClosure] = useState<PendingClosure | null>(null);
@@ -255,6 +277,46 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
     setActiveLead(lead ?? null);
   }
 
+  async function moverPara(lead: LeadRow, targetColumn: string) {
+    if (!targetColumn || targetColumn === lead.etapa) return;
+
+    if (targetColumn === ETAPA_VENDA) {
+      setPendingClosure({ lead, etapaAnterior: lead.etapa });
+      setSaleValue(lead.valor_conversao ? String(lead.valor_conversao) : "");
+      setSaleDate(lead.data_conversao ? lead.data_conversao.slice(0, 10) : localToday());
+      setClosureError(null);
+      return;
+    }
+
+    if (targetColumn === ETAPA_PERDIDO) {
+      setPendingLoss({ lead, etapaAnterior: lead.etapa });
+      setLossReason("");
+      setLossDetail("");
+      setLossError(null);
+      return;
+    }
+
+    const previousLeads = leads;
+    const updatedAt = new Date().toISOString();
+
+    setLeads((prev) =>
+      prev.map((item) => (item.id === lead.id ? { ...item, etapa: targetColumn, motivo_perda: null, etapa_alterada_em: updatedAt, atualizado_em: updatedAt } : item)),
+    );
+
+    const error = accessMode === "internal"
+      ? await updateInternalLead(lead.id, { etapa: targetColumn })
+      : (await supabase.from("leads").update({ etapa: targetColumn, atualizado_em: updatedAt }).eq("id", lead.id)).error;
+
+    if (error) {
+      setLeads(previousLeads);
+      return;
+    }
+
+    if (accessMode === "portal") {
+      notifyStageChange(lead, lead.etapa, targetColumn);
+    }
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveLead(null);
@@ -266,43 +328,7 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
     const targetColumn = columns.find((col) => col.key === over.id)?.key
       ?? leads.find((item) => item.id === over.id)?.etapa;
 
-    if (!targetColumn || targetColumn === draggedLead.etapa) return;
-
-    if (targetColumn === ETAPA_VENDA) {
-      setPendingClosure({ lead: draggedLead, etapaAnterior: draggedLead.etapa });
-      setSaleValue(draggedLead.valor_conversao ? String(draggedLead.valor_conversao) : "");
-      setSaleDate(draggedLead.data_conversao ? draggedLead.data_conversao.slice(0, 10) : localToday());
-      setClosureError(null);
-      return;
-    }
-
-    if (targetColumn === ETAPA_PERDIDO) {
-      setPendingLoss({ lead: draggedLead, etapaAnterior: draggedLead.etapa });
-      setLossReason("");
-      setLossDetail("");
-      setLossError(null);
-      return;
-    }
-
-    const previousLeads = leads;
-    const updatedAt = new Date().toISOString();
-
-    setLeads((prev) =>
-      prev.map((item) => (item.id === draggedLead.id ? { ...item, etapa: targetColumn, motivo_perda: null, atualizado_em: updatedAt } : item)),
-    );
-
-    const error = accessMode === "internal"
-      ? await updateInternalLead(draggedLead.id, { etapa: targetColumn })
-      : (await supabase.from("leads").update({ etapa: targetColumn, atualizado_em: updatedAt }).eq("id", draggedLead.id)).error;
-
-    if (error) {
-      setLeads(previousLeads);
-      return;
-    }
-
-    if (accessMode === "portal") {
-      notifyStageChange(draggedLead, draggedLead.etapa, targetColumn);
-    }
+    if (targetColumn) await moverPara(draggedLead, targetColumn);
   }
 
   async function confirmClosure() {
@@ -355,6 +381,7 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
                 moeda: String(leadAtualizado.moeda ?? "BRL"),
                 data_conversao: String(leadAtualizado.data_conversao ?? `${saleDate}T12:00:00-03:00`),
                 atualizado_em: String(leadAtualizado.atualizado_em ?? new Date().toISOString()),
+                etapa_alterada_em: String(leadAtualizado.atualizado_em ?? new Date().toISOString()),
               }
             : item,
         ),
@@ -401,7 +428,7 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
     setLeads((prev) =>
       prev.map((item) =>
         item.id === pendingLoss.lead.id
-          ? { ...item, etapa: ETAPA_PERDIDO, motivo_perda: lossReason, atualizado_em: atualizadoEm }
+          ? { ...item, etapa: ETAPA_PERDIDO, motivo_perda: lossReason, etapa_alterada_em: atualizadoEm, atualizado_em: atualizadoEm }
           : item,
       ),
     );
@@ -429,26 +456,76 @@ export function KanbanBoard({ clienteNome, initialLeads, etapas, accessMode = "p
 
   return (
     <>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={() => setActiveLead(null)}
-      >
-        <div className={accessMode === "internal" ? "grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" : "flex gap-4 overflow-x-auto pb-2"}>
-          {columns.map((column) => (
-            <KanbanColumn
-              key={column.key}
-              column={column}
-              leads={leads.filter((lead) => lead.etapa === column.key)}
-              onTogglePausa={handleTogglePausa}
-              accessMode={accessMode}
-            />
+      <div className="mb-4 flex flex-wrap gap-2">
+        <select
+          value={filtro.etapa}
+          onChange={(event) => setFiltro((atual) => ({ ...atual, etapa: event.target.value }))}
+          className="rounded-xl border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white"
+        >
+          <option value="todas">Todas as etapas</option>
+          {etapasOrdenadas.map((etapa) => (
+            <option key={etapa.chave} value={etapa.chave}>{etapa.nome}</option>
           ))}
-        </div>
-        <DragOverlay>{activeLead ? <LeadCard lead={activeLead} dragging accessMode={accessMode} /> : null}</DragOverlay>
-      </DndContext>
+        </select>
+        <select
+          value={filtro.anuncio}
+          onChange={(event) => setFiltro((atual) => ({ ...atual, anuncio: event.target.value }))}
+          className="max-w-[220px] rounded-xl border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white"
+        >
+          <option value="todos">Todos os anúncios</option>
+          {anunciosDosLeads(leads).map((nome) => (
+            <option key={nome} value={nome}>{nome}</option>
+          ))}
+        </select>
+        <select
+          value={filtro.chegada}
+          onChange={(event) => setFiltro((atual) => ({ ...atual, chegada: event.target.value as FiltroLeads["chegada"] }))}
+          className="rounded-xl border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white"
+        >
+          <option value="todos">Chegaram quando quiser</option>
+          <option value="7">Chegaram nos últimos 7 dias</option>
+          <option value="30">Chegaram nos últimos 30 dias</option>
+        </select>
+        <button
+          type="button"
+          onClick={() => setFiltro((atual) => ({ ...atual, soParados: !atual.soParados }))}
+          className={`rounded-xl border px-3 py-2 text-sm font-medium ${filtro.soParados ? "border-amber-400/50 bg-amber-400/15 text-amber-200" : "border-white/10 text-zinc-300"}`}
+        >
+          Parados há mais de 3 dias ({leads.filter((lead) => estaParado(lead, encerradas, agora)).length})
+        </button>
+      </div>
+
+      <LeadsLista
+        leads={filtrarLeads(leads, filtro, encerradas, agora)}
+        etapas={etapasOrdenadas}
+        encerradas={encerradas}
+        agora={agora}
+        onMover={moverPara}
+        onTogglePausa={handleTogglePausa}
+      />
+
+      <div className="hidden md:block">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveLead(null)}
+        >
+          <div className={accessMode === "internal" ? "grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" : "flex gap-4 overflow-x-auto pb-2"}>
+            {columns.map((column) => (
+              <KanbanColumn
+                key={column.key}
+                column={column}
+                leads={filtrarLeads(leads, filtro, encerradas, agora).filter((lead) => lead.etapa === column.key)}
+                onTogglePausa={handleTogglePausa}
+                accessMode={accessMode}
+              />
+            ))}
+          </div>
+          <DragOverlay>{activeLead ? <LeadCard lead={activeLead} dragging accessMode={accessMode} /> : null}</DragOverlay>
+        </DndContext>
+      </div>
 
       {pendingClosure ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onPointerDown={(event) => event.stopPropagation()}>

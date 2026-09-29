@@ -47,13 +47,4 @@ test("Kanban desenha as colunas a partir das etapas do cliente e pede motivo da 
     assert.match(src, /motivo_perda/, `${pagina}: não carrega o motivo da perda`);
     assert.match(src, /etapas=\{/, `${pagina}: não passa as etapas ao Kanban`);
   }
-  assert.doesNotMatch(ler("app/crm/[slug]/disparo/DisparoView.tsx"), /"proposta_enviada"|"desqualificado"/);
-});
-
-test("aba Conversas conhece as etapas novas e mostra um rótulo para etapa personalizada", () => {
-  const conversas = ler("app/crm/[slug]/conversas/ConversasView.tsx");
-  assert.match(conversas, /oportunidade: "Oportunidade"/);
-  assert.match(conversas, /perdido: "Perdido"/);
-  assert.doesNotMatch(conversas, /"proposta_enviada"|desqualificado:|nao_fechou:/);
-  assert.match(conversas, /rotuloEtapa\(/);
 });

@@ -19,7 +19,7 @@ async function fetchAllLeads(clienteId: string) {
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await supabaseAdmin
       .from("leads")
-      .select("id,nome,telefone,etapa,cliente_id,origem,criado_em,atualizado_em,pausado_ia,valor_conversao,moeda,data_conversao,motivo_perda")
+      .select("id,nome,telefone,etapa,cliente_id,origem,criado_em,atualizado_em,pausado_ia,valor_conversao,moeda,data_conversao,motivo_perda,anuncio,etapa_alterada_em")
       .eq("cliente_id", clienteId)
       .order("criado_em", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);

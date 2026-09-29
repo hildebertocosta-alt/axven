@@ -4,6 +4,9 @@ import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { KanbanBoard, type LeadRow } from "./KanbanBoard";
 import { LogoutButton } from "./LogoutButton";
 import type { EtapaCliente } from "@/app/lib/leadEtapas";
+import { PortalTabs } from "./PortalTabs";
+import { semLeadsDeTeste } from "@/app/lib/portalResultado";
+import { portalSidebarItems } from "./portalNav";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -27,7 +30,7 @@ async function fetchAllLeads(clienteId: string) {
   while (true) {
     const { data, error } = await supabaseAdmin
       .from("leads")
-      .select("id, nome, telefone, etapa, cliente_id, origem, criado_em, atualizado_em, pausado_ia, valor_conversao, moeda, data_conversao, motivo_perda")
+      .select("id, nome, telefone, etapa, cliente_id, origem, criado_em, atualizado_em, pausado_ia, valor_conversao, moeda, data_conversao, motivo_perda, anuncio, etapa_alterada_em, plataforma")
       .eq("cliente_id", clienteId)
       .order("criado_em", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
@@ -56,7 +59,7 @@ export default async function CrmKanbanPage({ params }: Props) {
   }
 
   const [leads, { data: etapas, error: etapasError }] = await Promise.all([
-    fetchAllLeads((cliente as ClienteRow).id),
+    fetchAllLeads((cliente as ClienteRow).id).then((todos) => semLeadsDeTeste(todos)),
     supabaseAdmin
       .from("cliente_etapas")
       .select("chave, nome, tipo, ordem")
@@ -68,16 +71,13 @@ export default async function CrmKanbanPage({ params }: Props) {
   return (
     <AppShell
       title={(cliente as ClienteRow).nome}
-      subtitle="CRM · Kanban de leads"
-      activeLabel="Kanban"
+      subtitle="Seus leads"
+      activeLabel="Leads"
       actions={<LogoutButton />}
       variant="portal"
-      sidebarItems={[
-        { label: "Kanban", href: `/crm/${slug}`, icon: "🧲" },
-        { label: "Conversas", href: `/crm/${slug}/conversas`, icon: "💬" },
-        { label: "Disparo", href: `/crm/${slug}/disparo`, icon: "📣" },
-      ]}
+      sidebarItems={portalSidebarItems(slug)}
     >
+      <PortalTabs slug={slug} active="leads" />
       <KanbanBoard clienteNome={(cliente as ClienteRow).nome} initialLeads={leads} etapas={(etapas ?? []) as EtapaCliente[]} />
     </AppShell>
   );
