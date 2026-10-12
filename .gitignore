@@ -44,3 +44,9 @@ next-env.d.ts
 
 # local tooling (not part of the project)
 .claude/
+
+# testes de navegador (Playwright)
+/test-results/
+/playwright-report/
+/blob-report/
+/e2e/.estado/
