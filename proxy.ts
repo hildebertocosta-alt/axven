@@ -2,7 +2,17 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME, verifySessionToken } from "@/app/lib/authSession";
 
-const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/webhooks/", "/api/aquisicao/", "/api/cron/"];
+// As rotas do portal do cliente (/api/crm/leads, /api/crm/disparos) não usam o
+// cookie da área interna: cada uma valida o Bearer do Supabase e o vínculo em
+// crm_usuarios. /api/crm/axven continua atrás do cookie interno.
+const PUBLIC_API_PREFIXES = [
+  "/api/auth/",
+  "/api/webhooks/",
+  "/api/aquisicao/",
+  "/api/cron/",
+  "/api/crm/leads/",
+  "/api/crm/disparos",
+];
 
 function isPublicPath(pathname: string) {
   if (pathname === "/") return true;
