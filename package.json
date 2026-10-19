@@ -22,7 +22,8 @@
     "test:lembrete-parados": "node --test tests/lembrete-parados.test.mjs",
     "test:entrega3": "node --test tests/entrega3-contratos.test.mjs",
     "test:e2e": "playwright test",
-    "test:e2e:relatorio": "playwright show-report"
+    "test:e2e:relatorio": "playwright show-report",
+    "test:clinicas-v3": "node --test tests/clinicas-v3.test.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

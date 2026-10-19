@@ -1,21 +1,44 @@
 "use client";
 
 import Script from "next/script";
-import LeadForm from "./LeadForm";
+import LeadForm, { onWhatsappClick, WHATSAPP_HREF } from "./LeadForm";
 
 const META_PIXEL_ID = "3457772717706355";
 
-const steps = [
-  ["01", "Atração", "Estratégia, campanhas e criativos para gerar novas oportunidades para sua clínica."],
-  ["02", "Lead", "Os novos contatos entram em uma jornada estruturada, com origem e contexto preservados."],
-  ["03", "Qualificação", "Organizamos as oportunidades para facilitar a priorização comercial."],
-  ["04", "Agendamento", "Acompanhamos a evolução do lead até o agendamento e os próximos passos."],
-  ["05", "CRM", "Cada oportunidade passa a ter estágio e histórico dentro do processo comercial."],
-  ["06", "Venda + Dados", "Resultados comerciais alimentam a leitura de performance e as próximas decisões."],
+// Case real, anônimo (OBELE). Fonte: Painel OBELE, setembro de 2026.
+// Contatos e qualificados contam pelo mês do primeiro contato; vendas e valor, pelo mês da compra.
+const caseNumbers = [
+  ["923", "contatos vindos de anúncio"],
+  ["51", "contatos qualificados pelo atendimento"],
+  ["21", "vendas ligadas ao anúncio de origem"],
+  ["R$ 41 mil", "em vendas registradas"],
 ];
-const fit = ["Fatura a partir de R$ 35 mil por mês","Já possui procedimentos e ofertas validados","Já vende e possui uma operação em funcionamento","Possui alguém responsável pelo atendimento dos leads","Tem capacidade para receber novos pacientes","Está disposta a acompanhar agendamentos e vendas"];
+
+const steps = [
+  ["01", "Anúncios que buscam paciente", "Campanhas no Instagram e no Facebook, ajustadas toda semana. A gente diz o que gravar e testa o que funciona."],
+  ["02", "Cada conversa com a origem", "O contato chega no WhatsApp da clínica já marcado com o anúncio que trouxe. Sua equipe marca o agendamento e a venda num painel simples."],
+  ["03", "Verba decidida pela venda", "Todo mês você vê quanto cada anúncio vendeu e quanto custou cada paciente. A verba vai para o que vende, não para o que dá clique."],
+];
+
+const included = [
+  "Gestão dos anúncios no Instagram e no Facebook",
+  "Roteiros de criativos para a sua equipe gravar",
+  "Painel Axven com o funil do contato à venda",
+  "Vendas devolvidas ao Meta para os anúncios buscarem quem compra",
+  "Relatório mensal com vendas, receita e custo por paciente",
+  "Toda segunda, a imagem dos anúncios da semana no seu WhatsApp",
+];
+
+const questions = [
+  ["Em quanto tempo fica pronto?", "Em até 15 dias úteis o painel está no ar mostrando de qual anúncio veio cada contato. Se não estiver, a mensalidade seguinte é por nossa conta."],
+  ["Tenho que ficar preso num contrato longo?", "O contrato é de 6 meses, com saída livre no 3º mês: se o relatório não mostrar de onde vêm as vendas registradas, você sai sem multa."],
+  ["O que a minha clínica precisa ter?", "Alguém que atenda o WhatsApp e marque no painel quem agendou e quem comprou. É isso que liga o anúncio à venda."],
+  ["Vocês gravam e editam os vídeos?", "Não. A gente define o que gravar e escreve o roteiro; sua equipe grava e a Axven sobe nos anúncios."],
+];
 
 export default function ClinicasPage() {
+  const cta = "inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FF3D57] px-7 py-4 font-semibold text-white shadow-[0_12px_40px_rgba(255,75,65,.18)]";
+  const kicker = "text-sm font-semibold uppercase tracking-[0.18em] text-[#FF6B35]";
   return <>
     <Script id="meta-pixel-axven" strategy="afterInteractive">{`
       !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -27,34 +50,87 @@ export default function ClinicasPage() {
       fbq('track', 'PageView');
     `}</Script>
     <noscript><img height="1" width="1" style={{display:"none"}} src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`} alt="" /></noscript>
-    <main className="min-h-screen bg-[#0B0B0F] text-[#F5F5F7]">
-    <section className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-24">
-      <div className="grid items-center gap-10 lg:grid-cols-[.88fr_1.12fr]">
-        <div className="relative z-20">
-          <div className="mb-7 inline-flex rounded-full border border-[#34343D] bg-[#111117]/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#FF6B35]">Para clínicas de estética com operação validada</div>
-          <h1 className="text-5xl font-semibold leading-[1.02] tracking-[-0.045em] md:text-7xl">Transforme seu marketing em uma <span className="bg-gradient-to-r from-[#FF6B35] to-[#FF3D57] bg-clip-text text-transparent">estrutura de aquisição de pacientes.</span></h1>
-          <p className="mt-7 max-w-2xl text-lg leading-8 text-[#A4A4AD]">A Axven conecta estratégia, anúncios, atendimento e dados para sua clínica gerar novas oportunidades e acompanhar o que acontece do primeiro contato até a venda.</p>
-          <div className="mt-7 grid gap-3 text-sm text-[#C8C8CE] sm:grid-cols-3"><span>◎ Aquisição estruturada</span><span>↗ Jornada acompanhada</span><span>◇ Decisões com dados</span></div>
-          <a href="#analise" className="mt-9 inline-flex rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FF3D57] px-7 py-4 font-semibold text-white shadow-[0_12px_40px_rgba(255,75,65,.18)]">Quero uma análise da minha clínica →</a>
-          <p className="mt-4 text-sm text-[#686872]">Para clínicas com faturamento a partir de R$ 35 mil/mês.</p>
-        </div>
-        <div className="relative min-h-[560px] overflow-hidden rounded-[30px] border border-[#35343A] bg-[#15120F] shadow-2xl">
-          <img src="/clinicas/hero-clinica-premium.jpg" alt="Clínica de estética premium com recepção iluminada e sala de procedimento" className="absolute inset-0 h-full w-full object-cover object-center" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0B0B0F]/30 via-transparent to-[#0B0B0F]/25"/><div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[#0B0B0F]/80 to-transparent"/>
-          <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/55 px-4 py-2 text-[11px] font-semibold uppercase tracking-[.14em] text-[#FFD0BF] backdrop-blur-md">Clínica de estética • operação premium</div>
-          <div className="absolute bottom-5 right-5 top-20 z-10 flex w-[47%] flex-col justify-center gap-3">
-            {[["Lead recebido","Instagram Ads","● Agora"],["Agendamento confirmado","WhatsApp","● Próximo passo"],["Oportunidade qualificada","CRM Axven","● Em acompanhamento"],["Venda registrada","Resultado comercial","● Dado da operação"]].map(([t,s,m])=><div key={t} className="rounded-2xl border border-white/10 bg-[#0B0B0F]/88 p-4 shadow-xl backdrop-blur-md"><p className="text-sm font-semibold text-white">{t}</p><p className="mt-1 text-xs text-[#B5B5BD]">{s}</p><p className="mt-2 text-[11px] text-[#70D99A]">{m}</p></div>)}
+    <main className="min-h-screen bg-[#0B0B0F] pb-24 text-[#F5F5F7] md:pb-0">
+
+    {/* Topo */}
+    <section className="mx-auto max-w-7xl px-6 pb-16 pt-12 md:pt-24">
+      <div className="grid items-center gap-10 lg:grid-cols-[1fr_.9fr]">
+        <div>
+          <div className="mb-6 inline-flex rounded-full border border-[#34343D] bg-[#111117]/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#FF6B35]">Para clínicas de estética</div>
+          <h1 className="text-4xl font-semibold leading-[1.05] tracking-[-0.04em] md:text-6xl">Saiba quais anúncios viram <span className="bg-gradient-to-r from-[#FF6B35] to-[#FF3D57] bg-clip-text text-transparent">paciente pagante</span> e coloque mais verba neles.</h1>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-[#A4A4AD]">A Axven cuida dos anúncios da sua clínica e liga cada conversa do WhatsApp à venda. No fim do mês, você vê quanto cada real investido voltou.</p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <a href="#analise" className={cta}>Quero uma análise da minha clínica →</a>
+            <a href={WHATSAPP_HREF} onClick={onWhatsappClick} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2A2A32] px-6 py-4 font-semibold hover:border-[#25D366]"><span className="text-[#25D366]">●</span> Falar no WhatsApp</a>
           </div>
+          <p className="mt-5 text-sm leading-6 text-[#8A8A94]">Numa rede de depilação a laser com 11 unidades, ligamos <strong className="text-[#F5F5F7]">21 vendas</strong> ao anúncio de origem em um único mês.</p>
+        </div>
+
+        {/* Prova: números reais do painel (cliente anônimo) */}
+        <div className="rounded-[28px] border border-[#2A2A32] bg-[#111117] p-6 shadow-2xl md:p-8">
+          <div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#FF8A64]">Painel Axven · setembro de 2026</p><span className="rounded-full bg-[#70D99A]/10 px-3 py-1 text-[11px] font-semibold text-[#70D99A]">dado real</span></div>
+          <p className="mt-2 text-sm text-[#9B9BA4]">Rede de depilação a laser · 11 unidades no Nordeste</p>
+          <div className="mt-6 grid grid-cols-2 gap-3">{caseNumbers.map(([n,t])=><div key={t} className="rounded-2xl border border-[#2A2A32] bg-[#0B0B0F] p-4"><p className="text-2xl font-semibold tracking-tight md:text-3xl">{n}</p><p className="mt-1 text-xs leading-5 text-[#9B9BA4]">{t}</p></div>)}</div>
+          <div className="mt-5 space-y-2 text-sm">{[["Anúncio","Contato no WhatsApp"],["Atendimento","Agendamento"],["Venda","Valor no painel"]].map(([a,b])=><div key={a} className="flex items-center justify-between rounded-xl bg-[#17171D] px-4 py-3"><span>{a}</span><span className="text-[#FF6B35]">→</span><span className="text-[#C8C8CE]">{b}</span></div>)}</div>
+          <p className="mt-4 text-[11px] leading-5 text-[#686872]">Números do painel do cliente. O valor foi registrado em 19 das 21 vendas. Resultado de outra clínica depende da oferta, da verba e do atendimento.</p>
         </div>
       </div>
-      <div className="mt-12 grid gap-3 rounded-2xl border border-[#2A2A32] bg-[#111117] p-5 text-center text-xs font-semibold uppercase tracking-[0.12em] text-[#9B9BA4] sm:grid-cols-5"><span>Estratégia</span><span>Mídia paga</span><span>Automação</span><span>CRM & vendas</span><span>Dados & performance</span></div>
     </section>
-    <section className="border-y border-[#2A2A32] bg-[#111117]"><div className="mx-auto max-w-6xl px-6 py-20"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#FF6B35]">O gargalo</p><h2 className="mt-4 max-w-3xl text-3xl font-semibold tracking-tight md:text-5xl">O problema pode não estar apenas nos seus anúncios.</h2><p className="mt-6 max-w-3xl text-lg leading-8 text-[#9B9BA4]">Contatos chegam, alguns agendam, outros somem, alguns comparecem e outros compram. No final do mês, sua clínica consegue identificar quais campanhas trouxeram as melhores oportunidades, quantas agendaram e quanto virou venda?</p><div className="mt-10 grid gap-3 md:grid-cols-2">{["Quais anúncios trouxeram as melhores oportunidades?","Quantos leads realmente agendaram?","Quantos compareceram?","Quantos compraram e quanto geraram em vendas?"].map(x=><div key={x} className="rounded-2xl border border-[#2A2A32] bg-[#17171D] p-5">{x}</div>)}</div></div></section>
-    <section className="mx-auto max-w-6xl px-6 py-24"><div className="grid items-center gap-12 lg:grid-cols-[.9fr_1.1fr]"><div className="relative min-h-[460px] overflow-hidden rounded-[28px] border border-[#2A2A32] bg-[#111117] shadow-2xl"><img src="/clinicas/hero-clinica-premium.jpg" alt="Ambiente de clínica de estética premium" className="absolute inset-0 h-full w-full object-cover object-center"/><div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0F]/90 via-transparent to-[#0B0B0F]/10"/><div className="absolute bottom-0 left-0 right-0 p-6 md:p-8"><div className="inline-flex rounded-full border border-white/10 bg-black/45 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[#FF8A64] backdrop-blur-md">Contexto real de operação</div><p className="mt-4 max-w-md text-lg font-medium leading-7 text-white">A experiência da paciente acontece na clínica. A Axven organiza o caminho que traz a oportunidade até ela.</p></div></div><div><p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#FF6B35]">Estrutura de Crescimento Axven</p><h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">Do anúncio ao procedimento vendido.</h2><p className="mt-5 max-w-3xl text-lg leading-8 text-[#9B9BA4]">Marketing e comercial passam a fazer parte da mesma leitura operacional.</p><div className="mt-10 grid gap-4 sm:grid-cols-2">{steps.map(([n,t,d])=><article key={n} className="rounded-2xl border border-[#2A2A32] bg-[#111117] p-5"><span className="text-sm font-semibold text-[#FF5A3C]">{n}</span><h3 className="mt-3 text-lg font-semibold">{t}</h3><p className="mt-2 text-sm leading-6 text-[#9B9BA4]">{d}</p></article>)}</div><div className="mt-6 rounded-2xl border border-[#2A2A32] p-5 text-center text-sm text-[#9B9BA4]">Anúncio → Lead → Qualificação → Agendamento → Venda → Receita → Dados</div></div></div></section>
-    <section className="bg-[#111117]"><div className="mx-auto grid max-w-6xl gap-12 px-6 py-24 md:grid-cols-2"><div><p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#FF6B35]">Perfil ideal</p><h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">A Axven não é para toda clínica.</h2><p className="mt-6 leading-8 text-[#9B9BA4]">Foi desenhada para operações que já provaram que conseguem vender e agora querem estruturar aquisição, processo comercial e dados.</p></div><div className="space-y-3">{fit.map(x=><div key={x} className="rounded-xl border border-[#2A2A32] bg-[#17171D] p-4"><span className="mr-3 text-[#FF6B35]">✓</span>{x}</div>)}</div></div></section>
-    <section className="mx-auto max-w-6xl px-6 py-24"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#FF6B35]">O que construímos</p><h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">Uma operação conectada, não apenas campanhas.</h2><div className="mt-10 grid gap-4 md:grid-cols-2">{[["Estratégia de aquisição","Campanhas, ofertas e jornadas para geração de demanda."],["Gestão de mídia","Estruturação, operação e otimização das campanhas."],["Criativos de performance","Estratégia, copy, roteiros, design e adaptação dos materiais usados nas campanhas."],["CRM e processo comercial","Organização da jornada entre lead, qualificação, agendamento e venda."],["Tracking e dados","Estrutura para conectar origem, oportunidade e resultado comercial."],["Automações essenciais","Automatizações necessárias dentro do processo padronizado da Axven."]].map(([t,d])=><div key={t} className="rounded-2xl border border-[#2A2A32] bg-[#111117] p-6"><h3 className="text-xl font-semibold">{t}</h3><p className="mt-3 leading-7 text-[#9B9BA4]">{d}</p></div>)}</div></section>
-    <section id="analise" className="border-t border-[#2A2A32] bg-[#111117]"><div className="mx-auto max-w-3xl px-6 py-24"><p className="text-center text-sm font-semibold uppercase tracking-[0.18em] text-[#FF6B35]">Análise de Crescimento Axven</p><h2 className="mt-4 text-center text-3xl font-semibold tracking-tight md:text-5xl">Sua clínica tem perfil para avançar?</h2><p className="mx-auto mt-5 max-w-2xl text-center leading-8 text-[#9B9BA4]">Responda algumas perguntas rápidas. Se houver alinhamento com a estrutura atual da Axven, você poderá avançar para o agendamento da análise.</p><LeadForm /></div></section>
-    <style jsx global>{`.input{width:100%;border:1px solid #2A2A32;background:#17171D;color:#F5F5F7;border-radius:12px;padding:14px 16px;outline:none}.input:focus{border-color:#FF5A3C}`}</style>
+
+    {/* Problema */}
+    <section className="border-y border-[#2A2A32] bg-[#111117]"><div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
+      <p className={kicker}>O problema</p>
+      <h2 className="mt-4 max-w-3xl text-3xl font-semibold tracking-tight md:text-5xl">A clínica sabe quantas mensagens chegaram. Mas quantas viraram dinheiro?</h2>
+      <div className="mt-8 grid gap-3 md:grid-cols-2">{["Quais anúncios trouxeram paciente que pagou?","Quantos contatos realmente agendaram?","Quantos compareceram?","Quanto entrou no caixa por causa dos anúncios?"].map(x=><div key={x} className="rounded-2xl border border-[#2A2A32] bg-[#17171D] p-5">{x}</div>)}</div>
+      <a href="#analise" className={`${cta} mt-8`}>Quero essas respostas da minha clínica →</a>
+    </div></section>
+
+    {/* Como funciona */}
+    <section className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+      <p className={kicker}>Como funciona</p>
+      <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">Do anúncio ao procedimento vendido, em 3 passos.</h2>
+      <div className="mt-8 grid gap-4 md:grid-cols-3">{steps.map(([n,t,d])=><article key={n} className="rounded-2xl border border-[#2A2A32] bg-[#111117] p-6"><span className="text-sm font-semibold text-[#FF5A3C]">{n}</span><h3 className="mt-3 text-lg font-semibold">{t}</h3><p className="mt-2 text-sm leading-6 text-[#9B9BA4]">{d}</p></article>)}</div>
+    </section>
+
+    {/* Oferta */}
+    <section className="bg-[#111117]"><div className="mx-auto grid max-w-6xl gap-10 px-6 py-16 md:grid-cols-[1.1fr_.9fr] md:py-24">
+      <div>
+        <p className={kicker}>O que vem incluído</p>
+        <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">Estrutura Axven</h2>
+        <ul className="mt-8 space-y-3">{included.map(x=><li key={x} className="flex gap-3 rounded-xl border border-[#2A2A32] bg-[#17171D] p-4"><span className="text-[#FF6B35]">✓</span><span>{x}</span></li>)}</ul>
+      </div>
+      <div className="self-center rounded-[28px] border border-[#FF6B35]/40 bg-[#0B0B0F] p-8">
+        <p className="text-sm text-[#9B9BA4]">A partir de</p>
+        <p className="mt-1 text-5xl font-semibold tracking-tight">R$ 990<span className="text-lg font-medium text-[#9B9BA4]">/mês</span></p>
+        <p className="mt-3 text-sm leading-6 text-[#9B9BA4]">Para verba de anúncio de até R$ 3 mil por mês. Verba maior ou mais de uma unidade: valor na conversa.</p>
+        <div className="mt-6 rounded-2xl bg-[#FF6B35]/10 p-4 text-sm leading-6 text-[#FFD0BF]"><strong className="text-white">Condição de fundador até 30/11:</strong> preço travado por 12 meses.</div>
+        <ul className="mt-6 space-y-2 text-sm text-[#C8C8CE]"><li>✓ Painel no ar em até 15 dias úteis</li><li>✓ Saída livre no 3º mês</li><li>✓ Teste do atendimento da sua clínica, de bônus</li></ul>
+        <a href="#analise" className={`${cta} mt-8 w-full`}>Quero uma análise →</a>
+      </div>
+    </div></section>
+
+    {/* Perguntas */}
+    <section className="mx-auto max-w-3xl px-6 py-16 md:py-24">
+      <p className={kicker}>Perguntas rápidas</p>
+      <div className="mt-6 space-y-3">{questions.map(([q,a])=><details key={q} className="group rounded-2xl border border-[#2A2A32] bg-[#111117] p-5"><summary className="cursor-pointer list-none font-semibold">{q}<span className="float-right text-[#FF6B35] group-open:rotate-45">+</span></summary><p className="mt-3 leading-7 text-[#9B9BA4]">{a}</p></details>)}</div>
+      <p className="mt-8 text-sm leading-6 text-[#8A8A94]">Quem atende é o Hildeberto Costa, fundador da Axven Digital, gestor de tráfego de clínicas, restaurantes, lojas e revendas no Nordeste.</p>
+    </section>
+
+    {/* Formulário */}
+    <section id="analise" className="border-t border-[#2A2A32] bg-[#111117]"><div className="mx-auto max-w-xl px-6 py-16 md:py-24">
+      <p className={`${kicker} text-center`}>Análise gratuita</p>
+      <h2 className="mt-4 text-center text-3xl font-semibold tracking-tight md:text-5xl">Vamos olhar os anúncios da sua clínica.</h2>
+      <p className="mx-auto mt-5 max-w-lg text-center leading-7 text-[#9B9BA4]">Preencha 4 campos e escolha um horário. Na conversa, mostramos onde a clínica está perdendo paciente entre o anúncio e a venda.</p>
+      <LeadForm />
+    </div></section>
+
+    {/* Botão fixo no celular */}
+    <div className="fixed inset-x-0 bottom-0 z-50 flex gap-2 border-t border-[#2A2A32] bg-[#0B0B0F]/95 p-3 backdrop-blur md:hidden">
+      <a href="#analise" className="flex-1 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FF3D57] px-4 py-3 text-center text-sm font-semibold text-white">Quero uma análise</a>
+      <a href={WHATSAPP_HREF} onClick={onWhatsappClick} target="_blank" rel="noopener noreferrer" aria-label="Falar no WhatsApp" className="rounded-xl border border-[#2A2A32] px-4 py-3 text-sm font-semibold"><span className="text-[#25D366]">●</span> WhatsApp</a>
+    </div>
+
+    <style jsx global>{`.input{width:100%;border:1px solid #2A2A32;background:#17171D;color:#F5F5F7;border-radius:12px;padding:14px 16px;outline:none}.input:focus{border-color:#FF5A3C}html{scroll-behavior:smooth}`}</style>
   </main>
   </>;
 }

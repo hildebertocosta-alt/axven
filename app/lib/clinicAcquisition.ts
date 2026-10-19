@@ -20,3 +20,7 @@ export function isQualifiedClinic(revenueKey: string) {
   const minimumRevenueInThousands = Number(revenueKey);
   return Number.isFinite(minimumRevenueInThousands) && minimumRevenueInThousands >= 35;
 }
+
+// /clinicas V3 (19/10/2026): formulário de 4 campos e sem corte de faturamento.
+// Os campos que deixaram de ser perguntados ficam gravados com este valor.
+export const CLINICAS_V3_NOT_COLLECTED = "nao_coletado_v3";

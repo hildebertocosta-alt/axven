@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
-import { isQualifiedClinic, NEW_PATIENTS_LABELS, REVENUE_LABELS } from "@/app/lib/clinicAcquisition";
+import { CLINICAS_V3_NOT_COLLECTED, isQualifiedClinic, NEW_PATIENTS_LABELS, REVENUE_LABELS } from "@/app/lib/clinicAcquisition";
 import { buildMetaLeadEventId } from "@/app/lib/metaLeadEvent";
 
 function text(value: unknown, max = 300) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
@@ -20,8 +20,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "payload_invalido" }, { status: 400 });
 
-  const nome = text(body.name, 120), whatsappDigits = text(body.whatsapp, 40).replace(/\D/g, ""), instagram = normalizeInstagram(body.instagram), revenueKey = text(body.revenue, 10), ads = text(body.ads, 100), challenge = text(body.challenge, 160), newPatientsKey = text(body.new_patients, 10), submissionId = text(body.submission_id, 36), faturamentoMinMil = Number(revenueKey);
-  if (!nome || whatsappDigits.length !== 11 || !instagram || !REVENUE_LABELS[revenueKey] || !ads || !challenge || !NEW_PATIENTS_LABELS[newPatientsKey] || !Number.isFinite(faturamentoMinMil) || (submissionId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionId))) {
+  // /clinicas V3 pergunta só nome, WhatsApp, Instagram e faturamento; /analise segue com as 7 perguntas.
+  const landingPage = resolveLandingPage(body.origin_url);
+  const isClinicasV3 = landingPage === "/clinicas";
+  const nome = text(body.name, 120), whatsappDigits = text(body.whatsapp, 40).replace(/\D/g, ""), instagram = normalizeInstagram(body.instagram), revenueKey = text(body.revenue, 10), ads = text(body.ads, 100) || (isClinicasV3 ? CLINICAS_V3_NOT_COLLECTED : ""), challenge = text(body.challenge, 160) || (isClinicasV3 ? CLINICAS_V3_NOT_COLLECTED : ""), newPatientsKey = text(body.new_patients, 10), submissionId = text(body.submission_id, 36), faturamentoMinMil = Number(revenueKey);
+  const newPatientsOk = Boolean(NEW_PATIENTS_LABELS[newPatientsKey]) || (isClinicasV3 && !newPatientsKey);
+  if (!nome || whatsappDigits.length !== 11 || !instagram || !REVENUE_LABELS[revenueKey] || !ads || !challenge || !newPatientsOk || !Number.isFinite(faturamentoMinMil) || (submissionId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionId))) {
     return NextResponse.json({ error: "campos_obrigatorios_ou_invalidos" }, { status: 400 });
   }
 
@@ -31,11 +35,11 @@ export async function POST(req: NextRequest) {
     if (existing) return NextResponse.json({ id: existing.id, qualified: existing.qualificado, stage: existing.etapa, meta_event_id: existing.meta_event_id, version: "clinicas-v2", idempotent: true }, { headers: { "Cache-Control": "no-store" } });
   }
 
-  const qualificado = isQualifiedClinic(revenueKey), forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "", landingPage = resolveLandingPage(body.origin_url);
+  const qualificado = isClinicasV3 || isQualifiedClinic(revenueKey), forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
   const metaEventId = buildMetaLeadEventId(randomUUID());
   const { data, error } = await supabaseAdmin.from("aquisicao_axven_leads").insert({
     vertical: "clinicas_estetica", landing_page: landingPage, nome, clinica: instagram, whatsapp: `55${whatsappDigits}`, instagram,
-    faturamento_faixa: REVENUE_LABELS[revenueKey], faturamento_min_mil: faturamentoMinMil, investimento_ads_faixa: ads, desafio_principal: challenge, novos_pacientes_faixa: NEW_PATIENTS_LABELS[newPatientsKey],
+    faturamento_faixa: REVENUE_LABELS[revenueKey], faturamento_min_mil: faturamentoMinMil, investimento_ads_faixa: ads, desafio_principal: challenge, novos_pacientes_faixa: NEW_PATIENTS_LABELS[newPatientsKey] ?? CLINICAS_V3_NOT_COLLECTED,
     atendimento_leads: "nao_coletado_v2", capacidade_investimento_faixa: "nao_coletado_v2", capacidade_min_mil: 0, inicio_pretendido: "nao_coletado_v2",
     qualificado, motivo_desqualificacao: qualificado ? null : "faturamento_abaixo_35k", etapa: qualificado ? "qualificado" : "desqualificado", submission_id: submissionId || null, meta_event_id: metaEventId,
     utm_source: nullable(body.utm_source, 180), utm_medium: nullable(body.utm_medium, 180), utm_campaign: nullable(body.utm_campaign, 250), utm_content: nullable(body.utm_content, 250), utm_term: nullable(body.utm_term, 250), fbclid: nullable(body.fbclid, 500), campaign_id: nullable(body.campaign_id, 120), adset_id: nullable(body.adset_id, 120), ad_id: nullable(body.ad_id, 120), origem_url: nullable(body.origin_url, 700), user_agent: nullable(req.headers.get("user-agent"), 700), ip_hash: forwardedFor ? createHash("sha256").update(forwardedFor).digest("hex") : null,
