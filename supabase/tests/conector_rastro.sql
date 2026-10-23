@@ -8,6 +8,7 @@ declare
   r jsonb;
   n int;
   l public.leads;
+  card2 text := gen_random_uuid()::text;
 begin
   select id into cli from public.clientes where nome = 'OBELE' limit 1;
   seg := public.rastro_conectar(cli);
@@ -41,6 +42,28 @@ begin
   if n <> 1 then raise exception 'FALHOU: card virou % leads', n; end if;
   select count(*) into n from public.lead_etapa_eventos where lead_id = l.id and origem = 'sync';
   if n <> 3 then raise exception 'FALHOU: histórico de etapas (%)', n; end if;
+
+  -- contato apagado no Rastro (LGPD): a venda fica anonimizada; card sem venda some; segredo errado é recusado
+  r := public.rastro_receber_card(cli, seg, jsonb_build_object('card_id', card, 'grupo', 'venda', 'nome', 'Lead Teste Rastro',
+    'telefone', '5581999990001', 'valor', 850, 'ganho_em', now()));
+  begin
+    r := public.rastro_apagar_card(cli, 'errado', card, true);
+    raise exception 'FALHOU: apagar com segredo errado passou';
+  exception when others then
+    if sqlerrm <> 'nao_autorizado' then raise; end if;
+  end;
+  r := public.rastro_apagar_card(cli, seg, card, true);
+  select * into l from public.leads where cliente_id = cli and origem_tabela = 'rastro' and origem_id = card;
+  if l.nome <> 'Contato apagado' or l.telefone is not null or l.ctwaclid is not null or l.email is not null
+     or l.valor_conversao <> 850 or l.etapa <> 'fechado' then
+    raise exception 'FALHOU: venda anonimizada (%)', row_to_json(l);
+  end if;
+  r := public.rastro_receber_card(cli, seg, jsonb_build_object('card_id', card2, 'grupo', 'novo', 'nome', 'Outro Lead', 'telefone', '5581999990002'));
+  r := public.rastro_apagar_card(cli, seg, card2, false);
+  select count(*) into n from public.leads where cliente_id = cli and origem_tabela = 'rastro' and origem_id = card2;
+  if n <> 0 then raise exception 'FALHOU: lead sem venda ficou'; end if;
+  r := public.rastro_apagar_card(cli, seg, gen_random_uuid()::text, false);
+  if (r ->> 'ok')::boolean is not true or r -> 'lead' <> 'null'::jsonb then raise exception 'FALHOU: card que não existe (%)', r; end if;
 
   raise exception 'TESTE_CONECTOR_OK';
 end;
