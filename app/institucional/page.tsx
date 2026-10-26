@@ -1,4 +1,5 @@
 import Link from "next/link";
+import RastroScript from "@/app/components/RastroScript";
 
 const solutions = [
   ["01", "Aquisição", "Estratégia de mídia, criativos e campanhas para gerar demanda e oportunidades comerciais."],
@@ -15,6 +16,7 @@ const founderSrc = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA4KC
 export default function InstitucionalPage() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#0B0B0F] text-[#F5F5F7]">
+      <RastroScript />
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0B0B0F]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 md:px-6">
           <Link href="/" className="flex items-center gap-3" aria-label="Axven Digital">

@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import DiagnosticForm from "./DiagnosticForm";
+import RastroScript from "@/app/components/RastroScript";
 
 const META_PIXEL_ID = "3457772717706355";
 
@@ -17,6 +18,7 @@ export default function AnalisePage() {
         fbq('init', '${META_PIXEL_ID}');
         fbq('track', 'PageView');
       `}</Script>
+      <RastroScript />
       <noscript><img height="1" width="1" style={{ display: "none" }} src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`} alt="" /></noscript>
       <main className="min-h-screen bg-[#0B0B0F] text-[#F5F5F7]">
         <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-5 py-8 md:px-8 md:py-12">

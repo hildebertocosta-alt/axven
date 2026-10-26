@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import LeadForm, { onWhatsappClick, WHATSAPP_HREF } from "./LeadForm";
+import RastroScript from "@/app/components/RastroScript";
 
 const META_PIXEL_ID = "3457772717706355";
 
@@ -49,6 +50,7 @@ export default function ClinicasPage() {
       fbq('init', '${META_PIXEL_ID}');
       fbq('track', 'PageView');
     `}</Script>
+    <RastroScript />
     <noscript><img height="1" width="1" style={{display:"none"}} src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`} alt="" /></noscript>
     <main className="min-h-screen bg-[#0B0B0F] pb-24 text-[#F5F5F7] md:pb-0">
 
