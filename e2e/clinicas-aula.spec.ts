@@ -13,7 +13,7 @@ test("sem login, /clinicas/aula abre com o topo na primeira tela", async ({ page
   await expect(page.getByText("Aula ao vivo e gratuita · quarta, 18/11, às 19h30 · online")).toBeVisible();
   const botao = page.getByRole("link", { name: "Quero participar" });
   await expect(botao).toBeInViewport();
-  await expect(page.getByText("Dados medidos em um cliente da Axven. Não é promessa de resultado.")).toBeAttached();
+  await expect(page.getByText("Dados de um cliente da Axven, sem o nome. Não é promessa de resultado.")).toBeAttached();
   const larguraDoc = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(larguraDoc).toBeLessThanOrEqual(375);
 });

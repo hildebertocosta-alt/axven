@@ -54,7 +54,7 @@ test("compliance: sem nome de cliente, promessa ou 'agência de tráfego'", () =
   assert.doesNotMatch(textos, /OBELE/i);
   assert.doesNotMatch(textos, /ag[êe]ncia de tr[áa]fego/i);
   assert.doesNotMatch(textos, /antes e depois|antes\/depois|garantimos|garantido/i);
-  assert.match(landing, /Dados medidos em um cliente da Axven\. Não é promessa de resultado\./);
+  assert.match(landing, /Dados de um cliente da Axven, sem o nome\. Não é promessa de resultado\./);
 });
 
 test("metadados próprios e rota pública", () => {
