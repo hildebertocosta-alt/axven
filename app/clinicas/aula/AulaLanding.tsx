@@ -13,9 +13,9 @@ const META_PIXEL_ID = "3457772717706355";
 const LARANJA = "#F2551F";
 
 const topicos = [
-  ["01", "Onde a paciente se perde entre o anúncio e a agenda."],
-  ["02", "Por que a maior parte da venda não sai no primeiro contato."],
-  ["03", "Como ver no painel quanto cada real de anúncio voltou."],
+  ["01", "Atrair quem agenda: como saber quais anúncios trazem paciente pagante."],
+  ["02", "Responder e convidar: onde a paciente se perde entre a mensagem e a agenda."],
+  ["03", "Acompanhar quem disse \"vou pensar\": por que a maior parte da venda não sai no primeiro contato. Tudo registrado no painel, até o caixa."],
 ];
 
 type Erros = Partial<Record<"name" | "whatsapp" | "clinic", string>>;
@@ -58,14 +58,14 @@ export default function AulaLanding({ fontClassName }: { fontClassName: string }
           {AULA_SELO}
         </p>
         <h1 className="mt-5 text-[32px] font-semibold leading-[1.08] tracking-[-0.03em] md:mt-7 md:text-6xl">Como saber quais anúncios viram <span style={{ color: LARANJA }}>paciente pagante</span> na sua clínica</h1>
-        <p className="mt-4 text-base leading-7 text-[#A4A4AD] md:mt-6 md:text-lg md:leading-8">O Hildeberto mostra ao vivo o processo que a Axven usa com clínicas de estética: do anúncio ao atendimento no WhatsApp e ao acompanhamento de quem ainda não agendou.</p>
+        <p className="mt-4 text-base leading-7 text-[#A4A4AD] md:mt-6 md:text-lg md:leading-8">O Hildeberto mostra ao vivo o <strong className="font-semibold text-[#F5F5F7]">Método Rastro</strong>, o processo que a Axven usa com clínicas de estética: do anúncio ao atendimento no WhatsApp e ao acompanhamento de quem ainda não agendou.</p>
         <a href="#inscricao" className={`${cta} mt-6 md:mt-8`} style={{ background: LARANJA }}>Quero participar</a>
       </section>
 
       {/* O que você vai ver */}
       <section className="border-t border-[#1F1F24]">
         <div className="mx-auto max-w-3xl px-5 py-14 md:px-6 md:py-20">
-          <p className={kicker} style={{ color: LARANJA }}>O que você vai ver</p>
+          <p className={kicker} style={{ color: LARANJA }}>Método Rastro em 3 etapas</p>
           <ul className="mt-6 space-y-3">
             {topicos.map(([n, t]) => <li key={n} className="flex gap-4 rounded-2xl border border-[#1F1F24] bg-[#0E0E12] p-5">
               <span className="text-sm font-semibold" style={{ color: LARANJA }}>{n}</span>
