@@ -22,7 +22,7 @@ const CARTAO = "rgba(255,255,255,.62)";
 const topicos = [
   ["1", "Atrair quem agenda", "Como saber quais anúncios trazem paciente pagante."],
   ["2", "Responder e convidar", "Onde a paciente se perde entre a mensagem e a agenda."],
-  ["3", "Acompanhar quem disse \"vou pensar\"", "Por que a maior parte da venda não sai no primeiro contato. Tudo registrado no painel, até o caixa."],
+  ["3", "Acompanhar quem disse “vou pensar”", "Por que a maior parte da venda não sai no primeiro contato. Tudo registrado no painel, até o caixa."],
 ];
 
 type Erros = Partial<Record<"name" | "whatsapp" | "clinic", string>>;
