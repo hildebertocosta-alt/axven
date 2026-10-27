@@ -5,7 +5,7 @@
 // com o link (https://chat.whatsapp.com/...) e fazer um novo deploy.
 // Opção 2: colar o link abaixo, em COMUNIDADE_URL_PADRAO, e fazer commit.
 // Enquanto os dois estiverem vazios, a tela de confirmação diz que o link chega pelo WhatsApp.
-const COMUNIDADE_URL_PADRAO = "";
+const COMUNIDADE_URL_PADRAO = "https://chat.whatsapp.com/C7uoPvEK5oz7JZRnr4FJxg";
 
 function normalizarLink(valor: string | undefined) {
   const link = (valor ?? "").trim();
