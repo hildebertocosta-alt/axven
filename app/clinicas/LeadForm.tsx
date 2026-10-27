@@ -3,15 +3,15 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { shouldTrackMetaSubmission } from "@/app/lib/metaLeadEvent";
 type ResultState = null | "qualified" | "unqualified" | "error";
-const trackingKeys = ["utm_source","utm_medium","utm_campaign","utm_content","utm_term","fbclid","campaign_id","adset_id","ad_id"] as const;
-function captureTracking(){const params=new URLSearchParams(window.location.search);const captured:Record<string,string>={};trackingKeys.forEach(k=>{const value=params.get(k);if(value)captured[k]=value});return captured}
+export const trackingKeys = ["utm_source","utm_medium","utm_campaign","utm_content","utm_term","fbclid","campaign_id","adset_id","ad_id"] as const;
+export function captureTracking(){const params=new URLSearchParams(window.location.search);const captured:Record<string,string>={};trackingKeys.forEach(k=>{const value=params.get(k);if(value)captured[k]=value});return captured}
 
 export const WHATSAPP_AXVEN = "5581995788220";
 export function whatsappLink(){let origem="";if(typeof window!=="undefined"){const p=new URLSearchParams(window.location.search);origem=p.get("utm_content")||p.get("utm_campaign")||""}const texto=`Olá! Vim pela página da Axven para clínicas de estética e quero entender como funciona.${origem?` (origem: ${origem})`:""}`;return `https://wa.me/${WHATSAPP_AXVEN}?text=${encodeURIComponent(texto)}`}
 
-function formatPhone(value:string){const digits=value.replace(/\D/g,"").slice(0,11);if(digits.length<=2)return digits;if(digits.length<=7)return `(${digits.slice(0,2)}) ${digits.slice(2)}`;return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`}
+export function formatPhone(value:string){const digits=value.replace(/\D/g,"").slice(0,11);if(digits.length<=2)return digits;if(digits.length<=7)return `(${digits.slice(0,2)}) ${digits.slice(2)}`;return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`}
 function formatInstagram(value:string){const clean=value.trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i,"").replace(/^@+/,"").replace(/[^a-zA-Z0-9._]/g,"").slice(0,30);return clean?`@${clean}`:""}
-function trackMeta(event:string,params:Record<string,unknown>={},custom=false,eventID?:string){if(typeof window==="undefined")return;const fbq=(window as typeof window&{fbq?:(...args:unknown[])=>void}).fbq;if(!fbq)return;if(eventID)fbq(custom?"trackCustom":"track",event,params,{eventID});else fbq(custom?"trackCustom":"track",event,params)}
+export function trackMeta(event:string,params:Record<string,unknown>={},custom=false,eventID?:string){if(typeof window==="undefined")return;const fbq=(window as typeof window&{fbq?:(...args:unknown[])=>void}).fbq;if(!fbq)return;if(eventID)fbq(custom?"trackCustom":"track",event,params,{eventID});else fbq(custom?"trackCustom":"track",event,params)}
 export const WHATSAPP_HREF = `https://wa.me/${WHATSAPP_AXVEN}`;
 // Monta o link com a origem (UTM) só na hora do clique, sem estado no React.
 export function onWhatsappClick(event:React.MouseEvent<HTMLAnchorElement>){event.currentTarget.href=whatsappLink();trackMeta("Contact",{content_name:"Clinicas WhatsApp",vertical:"clinicas_estetica"})}

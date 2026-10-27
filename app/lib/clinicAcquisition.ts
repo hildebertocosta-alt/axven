@@ -24,3 +24,15 @@ export function isQualifiedClinic(revenueKey: string) {
 // /clinicas V3 (19/10/2026): formulário de 4 campos e sem corte de faturamento.
 // Os campos que deixaram de ser perguntados ficam gravados com este valor.
 export const CLINICAS_V3_NOT_COLLECTED = "nao_coletado_v3";
+
+// /clinicas/aula (27/10/2026): inscrição na aula ao vivo para clínicas de estética.
+// Grava na mesma tabela (aquisicao_axven_leads) com landing própria; o nome da clínica vai em `clinica`
+// e as perguntas que essa página não faz ficam com este valor. Entra como etapa "lead", sem qualificar.
+export const AULA_CLINICAS_LANDING_ID = "clinicas-aula";
+export const AULA_CLINICAS_LANDING_PAGE = "/clinicas/aula";
+export const AULA_CLINICAS_NOT_COLLECTED = "nao_coletado_aula";
+
+// Celular BR: DDD (11 a 99) + 9 + 8 dígitos, sem o 55.
+export function isValidBrazilMobile(digits: string) {
+  return /^[1-9][1-9]9\d{8}$/.test(digits);
+}
