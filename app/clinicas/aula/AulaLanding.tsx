@@ -78,10 +78,10 @@ export default function AulaLanding({ fontClassName }: { fontClassName: string }
       {/* Prova: dado medido, não promessa */}
       <section className="border-t border-[#1F1F24]">
         <div className="mx-auto max-w-3xl px-5 py-14 md:px-6 md:py-20">
-          <p className={kicker} style={{ color: LARANJA }}>Dado medido</p>
+          <p className={kicker} style={{ color: LARANJA }}>Quem já usa o processo</p>
           <figure className="mt-6 rounded-3xl border border-[#1F1F24] bg-[#0E0E12] p-6 md:p-8">
-            <p className="text-lg leading-8 md:text-xl md:leading-9">Numa rede de depilação a laser com 11 unidades no Nordeste, em setembro de 2026: <strong className="font-semibold">21 vendas</strong> ligadas ao anúncio e <strong className="font-semibold">R$ 41 mil</strong> em vendas registradas. E <strong className="font-semibold" style={{ color: LARANJA }}>42% das compras</strong> vieram de quem tinha chamado havia mais de 30 dias.</p>
-            <figcaption className="mt-5 text-xs leading-5 text-[#77777F]">Dados medidos em um cliente da Axven. Não é promessa de resultado.</figcaption>
+            <p className="text-lg leading-8 md:text-xl md:leading-9">Uma rede de depilação a laser com 11 unidades no Nordeste, que fatura em média <strong className="font-semibold">R$ 160 mil por mês em cada unidade</strong>, usa esse processo. Nela, <strong className="font-semibold" style={{ color: LARANJA }}>42% das compras</strong> vieram de quem tinha chamado havia mais de 30 dias.</p>
+            <figcaption className="mt-5 text-xs leading-5 text-[#77777F]">Dados de um cliente da Axven, sem o nome. Não é promessa de resultado.</figcaption>
           </figure>
         </div>
       </section>
