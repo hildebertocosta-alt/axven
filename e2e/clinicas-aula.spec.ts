@@ -11,8 +11,8 @@ test("sem login, /clinicas/aula abre com o topo na primeira tela", async ({ page
   await expect(page).toHaveTitle("Aula ao vivo para clínicas de estética | Axven Digital");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Como saber quais anúncios viram paciente pagante na sua clínica");
   await expect(page.getByText("Aula ao vivo e gratuita · quarta, 18/11, às 19h30 · online")).toBeVisible();
-  const botao = page.getByRole("link", { name: "Quero participar" });
-  await expect(botao).toBeInViewport();
+  // O formulário vem logo depois do título: o primeiro campo aparece sem rolar a página.
+  await expect(page.getByRole("form", { name: "Inscrição na aula" }).getByLabel("Seu nome")).toBeInViewport();
   await expect(page.getByText("Dados de um cliente da Axven, sem o nome. Não é promessa de resultado.")).toBeAttached();
   const larguraDoc = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(larguraDoc).toBeLessThanOrEqual(375);
@@ -43,7 +43,7 @@ test("inscrição valida os 3 campos e mostra o passo seguinte", async ({ page }
 
   const proximo = page.getByTestId("aula-proximo-passo");
   await expect(proximo.getByRole("heading", { name: "Falta 1 passo: entre na comunidade da aula" })).toBeVisible();
-  await expect(proximo.getByText("Você vai receber o link da comunidade no seu WhatsApp.")).toBeVisible();
+  await expect(proximo.getByRole("link", { name: "Entrar na comunidade do WhatsApp" })).toHaveAttribute("href", /chat\.whatsapp\.com/);
   await expect(proximo.getByRole("link", { name: "Salvar na agenda" })).toHaveAttribute("href", /calendar\.google\.com.*20261118T193000%2F20261118T204500.*America%2FRecife/);
 
   expect(enviados).toHaveLength(1);

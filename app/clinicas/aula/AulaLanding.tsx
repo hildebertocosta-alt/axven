@@ -37,7 +37,6 @@ function validar(nome: string, telefone: string, clinica: string): Erros {
 
 export default function AulaLanding({ fontClassName }: { fontClassName: string }) {
   const [inscrito, setInscrito] = useState(false);
-  const cta = "inline-flex w-full items-center justify-center rounded-xl px-7 py-4 text-base font-semibold text-white transition hover:brightness-110 sm:w-auto";
   const kicker = "text-xs font-semibold uppercase tracking-[0.2em]";
   const secao = "border-t";
 
@@ -61,14 +60,20 @@ export default function AulaLanding({ fontClassName }: { fontClassName: string }
       </header>
 
       {/* Topo: cabe na primeira tela do celular */}
-      <section className="mx-auto max-w-3xl px-5 pb-14 pt-7 md:px-6 md:pb-24 md:pt-20">
+      <section className="mx-auto max-w-3xl px-5 pb-8 pt-7 md:px-6 md:pb-12 md:pt-20">
         <p className="inline-flex rounded-2xl px-3.5 py-2 text-[13px] font-semibold leading-5 md:text-sm" style={{ background: TINTA, color: PESSEGO }}>
           <span className="mr-2 mt-[7px] inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: LARANJA }} aria-hidden />
           {AULA_SELO}
         </p>
         <h1 className="mt-5 text-[34px] font-bold leading-[1.05] tracking-[-0.03em] md:mt-7 md:text-6xl">Como saber quais anúncios viram <span style={{ color: LARANJA }}>paciente pagante</span> na sua clínica</h1>
         <p className="mt-4 text-base leading-7 md:mt-6 md:text-lg md:leading-8" style={{ color: MUTED }}>O Hildeberto mostra ao vivo o <strong className="font-semibold" style={{ color: TINTA }}>Método Rastro</strong>, o processo que a Axven usa com clínicas de estética: do anúncio ao atendimento no WhatsApp e ao acompanhamento de quem ainda não agendou.</p>
-        <a href="#inscricao" className={`${cta} mt-6 md:mt-8`} style={{ background: LARANJA }}>Quero participar</a>
+      </section>
+
+      {/* Inscrição logo depois do título: quem vem do anúncio já sabe do que se trata */}
+      <section id="inscricao" className="scroll-mt-4 border-t" style={{ borderColor: LINHA, background: "rgba(255,255,255,.45)" }}>
+        <div className="mx-auto max-w-xl px-5 py-10 md:px-6 md:py-16">
+          <Inscricao onInscrito={() => setInscrito(true)} />
+        </div>
       </section>
 
       {/* Método Rastro em 3 etapas */}
@@ -111,13 +116,6 @@ export default function AulaLanding({ fontClassName }: { fontClassName: string }
             <p className="mt-2 text-xl font-semibold">Hildeberto Costa</p>
             <p className="mt-1 text-[15px] leading-6" style={{ color: MUTED }}>Fundador da Axven Digital. Monta com clínicas de estética a estrutura que liga o anúncio ao atendimento no WhatsApp e à venda registrada.</p>
           </div>
-        </div>
-      </section>
-
-      {/* Inscrição */}
-      <section id="inscricao" className="scroll-mt-4 border-t" style={{ borderColor: LINHA, background: "rgba(255,255,255,.45)" }}>
-        <div className="mx-auto max-w-xl px-5 py-14 md:px-6 md:py-20">
-          <Inscricao onInscrito={() => setInscrito(true)} />
         </div>
       </section>
 
