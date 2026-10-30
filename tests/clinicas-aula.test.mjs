@@ -60,5 +60,5 @@ test("compliance: sem nome de cliente, promessa ou 'agência de tráfego'", () =
 test("metadados próprios e rota pública", () => {
   assert.match(pagina, /"Aula ao vivo para clínicas de estética \| Axven Digital"/);
   assert.match(pagina, /\/clinicas\/aula-compartilhar\.png/);
-  assert.match(proxy, /if \(pathname === "\/clinicas\/aula"\) return true;/);
+  assert.match(proxy, /if \(pathname === "\/clinicas\/aula" \|\| pathname === "\/clinicas\/aula\/comunidade"\) return true;/);
 });
