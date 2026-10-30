@@ -19,7 +19,7 @@ function isPublicPath(pathname: string) {
   if (pathname === "/login") return true;
   if (pathname === "/institucional") return true;
   if (pathname === "/clinicas") return true;
-  if (pathname === "/clinicas/aula") return true;
+  if (pathname === "/clinicas/aula" || pathname === "/clinicas/aula/comunidade") return true;
   if (pathname === "/analise") return true;
   if (pathname === "/politica-de-privacidade") return true;
   if (pathname === "/crm" || pathname.startsWith("/crm/")) return true;
