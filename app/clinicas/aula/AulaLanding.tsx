@@ -60,18 +60,18 @@ export default function AulaLanding({ fontClassName }: { fontClassName: string }
       </header>
 
       {/* Topo: cabe na primeira tela do celular */}
-      <section className="mx-auto max-w-3xl px-5 pb-8 pt-7 md:px-6 md:pb-12 md:pt-20">
+      <section className="mx-auto max-w-3xl px-5 pb-5 pt-6 md:px-6 md:pb-12 md:pt-20">
         <p className="inline-flex rounded-2xl px-3.5 py-2 text-[13px] font-semibold leading-5 md:text-sm" style={{ background: TINTA, color: PESSEGO }}>
           <span className="mr-2 mt-[7px] inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: LARANJA }} aria-hidden />
           {AULA_SELO}
         </p>
         <h1 className="mt-5 text-[34px] font-bold leading-[1.05] tracking-[-0.03em] md:mt-7 md:text-6xl">Como saber quais anúncios viram <span style={{ color: LARANJA }}>paciente pagante</span> na sua clínica</h1>
-        <p className="mt-4 text-base leading-7 md:mt-6 md:text-lg md:leading-8" style={{ color: MUTED }}>O Hildeberto mostra ao vivo o <strong className="font-semibold" style={{ color: TINTA }}>Método Rastro</strong>, o processo que a Axven usa com clínicas de estética: do anúncio ao atendimento no WhatsApp e ao acompanhamento de quem ainda não agendou.</p>
+        <p className="mt-3 text-base leading-6 md:mt-6 md:text-lg md:leading-8" style={{ color: MUTED }}>O Hildeberto mostra ao vivo o <strong className="font-semibold" style={{ color: TINTA }}>Método Rastro</strong>: do anúncio ao atendimento no WhatsApp e ao acompanhamento de quem ainda não agendou.</p>
       </section>
 
       {/* Inscrição logo depois do título: quem vem do anúncio já sabe do que se trata */}
       <section id="inscricao" className="scroll-mt-4 border-t" style={{ borderColor: LINHA, background: "rgba(255,255,255,.45)" }}>
-        <div className="mx-auto max-w-xl px-5 py-10 md:px-6 md:py-16">
+        <div className="mx-auto max-w-xl px-5 pb-10 pt-5 md:px-6 md:py-16">
           <Inscricao onInscrito={() => setInscrito(true)} />
         </div>
       </section>
@@ -185,10 +185,10 @@ function Inscricao({ onInscrito }: { onInscrito: () => void }) {
   </div>;
 
   return <>
-    <h2 className="text-center text-3xl font-bold tracking-tight md:text-4xl">Garanta sua vaga</h2>
-    <p className="mt-3 text-center leading-7" style={{ color: MUTED }}>{AULA_DATA_TEXTO} · online e gratuita.</p>
+    <h2 className="text-center text-2xl font-bold tracking-tight md:text-4xl">Garanta sua vaga</h2>
+    <p className="mt-3 hidden text-center leading-7 md:block" style={{ color: MUTED }}>{AULA_DATA_TEXTO} · online e gratuita.</p>
     {falhou && <div role="alert" className="mt-6 rounded-2xl border border-red-600/30 bg-red-600/10 p-4 text-center text-sm text-red-800">Não foi possível enviar agora. Tente de novo em instantes.</div>}
-    <form onSubmit={enviar} noValidate className="mt-8 space-y-5" aria-label="Inscrição na aula">
+    <form onSubmit={enviar} noValidate className="mt-5 space-y-4 md:mt-8 md:space-y-5" aria-label="Inscrição na aula">
       <Campo id="aula-nome" label="Seu nome" erro={erros.name}>
         <input id="aula-nome" name="name" autoComplete="name" value={nome} onChange={e => setNome(e.target.value)} aria-invalid={!!erros.name} aria-describedby={erros.name ? "aula-nome-erro" : undefined} className="aula-input" />
       </Campo>
