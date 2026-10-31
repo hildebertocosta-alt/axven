@@ -1,11 +1,11 @@
 // Configuração da aula ao vivo para clínicas de estética (/clinicas/aula).
 
-// LINK DA COMUNIDADE DO WHATSAPP: é o único lugar para trocar.
+// LINK DO GRUPO DO WHATSAPP (desde 31/10 é grupo, não comunidade): é o único lugar para trocar.
 // Opção 1 (sem mexer no código): criar na Vercel a variável NEXT_PUBLIC_AULA_CLINICAS_COMUNIDADE_URL
 // com o link (https://chat.whatsapp.com/...) e fazer um novo deploy.
 // Opção 2: colar o link abaixo, em COMUNIDADE_URL_PADRAO, e fazer commit.
 // Enquanto os dois estiverem vazios, a tela de confirmação diz que o link chega pelo WhatsApp.
-const COMUNIDADE_URL_PADRAO = "https://chat.whatsapp.com/C7uoPvEK5oz7JZRnr4FJxg";
+const COMUNIDADE_URL_PADRAO = "https://chat.whatsapp.com/D3Gy3CzCJhr74UmAHFRAnw";
 
 function normalizarLink(valor: string | undefined) {
   const link = (valor ?? "").trim();

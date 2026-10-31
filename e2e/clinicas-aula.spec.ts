@@ -42,8 +42,8 @@ test("inscrição valida os 3 campos e mostra o passo seguinte", async ({ page }
   await enviar.click();
 
   const proximo = page.getByTestId("aula-proximo-passo");
-  await expect(proximo.getByRole("heading", { name: "Falta 1 passo: entre na comunidade da aula" })).toBeVisible();
-  await expect(proximo.getByRole("link", { name: "Entrar na comunidade do WhatsApp" })).toHaveAttribute("href", /chat\.whatsapp\.com/);
+  await expect(proximo.getByRole("heading", { name: "Falta 1 passo: entre no grupo da aula" })).toBeVisible();
+  await expect(proximo.getByRole("link", { name: "Entrar no grupo do WhatsApp" })).toHaveAttribute("href", /chat\.whatsapp\.com/);
   await expect(proximo.getByRole("link", { name: "Salvar na agenda" })).toHaveAttribute("href", /calendar\.google\.com.*20261118T193000%2F20261118T204500.*America%2FRecife/);
 
   expect(enviados).toHaveLength(1);

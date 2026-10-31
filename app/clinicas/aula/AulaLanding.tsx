@@ -176,11 +176,11 @@ function Inscricao({ onInscrito }: { onInscrito: () => void }) {
   if (pronto) return <div ref={confirmacao} className="scroll-mt-6 text-center" data-testid="aula-proximo-passo">
     <div className="mx-auto mb-6 h-1.5 w-14 rounded-full" style={{ background: LARANJA }} />
     <p className="text-sm" style={{ color: MUTED }}>Inscrição feita.</p>
-    <h2 className="mt-2 text-3xl font-bold leading-tight tracking-tight md:text-4xl">Falta 1 passo: entre na comunidade da aula</h2>
+    <h2 className="mt-2 text-3xl font-bold leading-tight tracking-tight md:text-4xl">Falta 1 passo: entre no grupo da aula</h2>
     <p className="mx-auto mt-4 max-w-md leading-7" style={{ color: MUTED }}>É por lá que vão o link da aula e os avisos. {AULA_DATA_TEXTO}.</p>
     {AULA_COMUNIDADE_URL
-      ? <a href={AULA_COMUNIDADE_URL} target="_blank" rel="noopener noreferrer" className="mt-8 flex w-full items-center justify-center rounded-xl px-6 py-5 text-lg font-semibold text-white transition hover:brightness-110" style={{ background: LARANJA }}>Entrar na comunidade do WhatsApp</a>
-      : <p className="mt-8 rounded-2xl border px-5 py-5 text-base leading-7" style={{ borderColor: LINHA, background: CARTAO }}>Você vai receber o link da comunidade no seu WhatsApp.</p>}
+      ? <a href={AULA_COMUNIDADE_URL} target="_blank" rel="noopener noreferrer" className="mt-8 flex w-full items-center justify-center rounded-xl px-6 py-5 text-lg font-semibold text-white transition hover:brightness-110" style={{ background: LARANJA }}>Entrar no grupo do WhatsApp</a>
+      : <p className="mt-8 rounded-2xl border px-5 py-5 text-base leading-7" style={{ borderColor: LINHA, background: CARTAO }}>Você vai receber o link do grupo no seu WhatsApp.</p>}
     <a href={AULA_GOOGLE_AGENDA_URL} target="_blank" rel="noopener noreferrer" className="mt-3 flex w-full items-center justify-center rounded-xl px-6 py-4 font-semibold transition hover:brightness-125" style={{ background: TINTA, color: PESSEGO }}>Salvar na agenda</a>
   </div>;
 

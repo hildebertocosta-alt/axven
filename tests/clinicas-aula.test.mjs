@@ -41,9 +41,9 @@ test("formulário tem 3 campos, manda a landing e o Lead com eventID", () => {
   assert.match(landing, /Ao se inscrever, você aceita receber no WhatsApp as mensagens sobre a aula\. Você pode sair quando quiser\./);
 });
 
-test("link da comunidade vem de uma configuração só e tem texto de espera", () => {
+test("link do grupo vem de uma configuração só e tem texto de espera", () => {
   assert.match(config, /process\.env\.NEXT_PUBLIC_AULA_CLINICAS_COMUNIDADE_URL \|\| COMUNIDADE_URL_PADRAO/);
-  assert.match(landing, /Você vai receber o link da comunidade no seu WhatsApp\./);
+  assert.match(landing, /Você vai receber o link do grupo no seu WhatsApp\./);
   assert.match(config, /dates: "20261118T193000\/20261118T204500"/);
   assert.match(config, /ctz: "America\/Recife"/);
   assert.doesNotMatch(landing + config, /meet\.google/i);
