@@ -118,3 +118,8 @@ input {
   border-color: #d85a30;
   color: #d85a30;
 }
+
+@keyframes metodoEntra {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
 import RastroScript, { CHAVE_RASTRO_AXVEN_DIGITAL } from "@/app/components/RastroScript";
+import MetodoScroll from "@/app/components/MetodoScroll";
 
 // Página inicial da Axven (10/11/2026): Método Axven, Axven Rastro e WhatsApp comercial 99849 (IA do Rastro).
 const sg = Space_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
@@ -57,7 +58,7 @@ function Selo({ children, verde = false }: { children: React.ReactNode; verde?: 
 
 export default function InstitucionalPage() {
   return (
-    <main className={`${sg.className} min-h-screen overflow-hidden bg-[#0B0B0F] text-[#F5F5F7]`}>
+    <main className={`${sg.className} min-h-screen overflow-x-clip bg-[#0B0B0F] text-[#F5F5F7]`}>
       <RastroScript chave={CHAVE_RASTRO_AXVEN_DIGITAL} />
 
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0B0B0F]/90 backdrop-blur-xl">
@@ -125,19 +126,13 @@ export default function InstitucionalPage() {
       </section>
 
       {/* Método */}
-      <section id="metodo" className="mx-auto max-w-7xl scroll-mt-24 px-5 py-20 md:px-6 md:py-28">
-        <Selo>Método Axven</Selo>
-        <h2 className="mt-5 max-w-3xl text-4xl font-bold tracking-[-.035em] md:text-6xl">5 etapas do anúncio <span className="text-[#F2551F]">até o caixa.</span></h2>
-        <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          {etapas.map((e) => (
-            <article key={e.n} className={`flex flex-col rounded-3xl border p-7 ${e.verde ? "border-[#81F002]/60 bg-[#81F002]/[.05]" : "border-white/10 bg-[#17171D]"}`}>
-              <span className={`text-5xl font-bold tracking-[-.04em] ${e.verde ? "text-[#81F002]" : "text-[#F2551F]"}`}>{e.n}</span>
-              <h3 className={`mt-6 text-2xl font-bold ${e.verde ? "text-[#81F002]" : ""}`}>{e.nome}</h3>
-              <p className="mt-3 flex-1 leading-7 text-[#9B9BA4]">{e.texto}</p>
-              <p className="mt-6 w-fit rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-[#9B9BA4]">{e.onde}</p>
-            </article>
-          ))}
+      <section id="metodo" className="scroll-mt-24">
+        <div className="mx-auto max-w-7xl px-5 pt-20 md:px-6 md:pt-28">
+          <Selo>Método Axven</Selo>
+          <h2 className="mt-5 max-w-3xl text-4xl font-bold tracking-[-.035em] md:text-6xl">5 etapas do anúncio <span className="text-[#F2551F]">até o caixa.</span></h2>
+          <p className="mt-5 text-sm text-[#63636C] motion-reduce:hidden">Role para ver o caminho de uma venda ↓</p>
         </div>
+        <MetodoScroll etapas={etapas} />
       </section>
 
       {/* Axven Rastro */}
