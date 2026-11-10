@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { isValidCronAuthorization } from "../app/lib/cronAuth.ts";
-import { deriveMetaSyncStatus, isMetaSyncEligible } from "../app/lib/metaSyncPolicy.ts";
+import { deriveMetaSyncStatus, escolherTokenMeta, isMetaSyncEligible } from "../app/lib/metaSyncPolicy.ts";
 import { calculateMetaSyncWindow } from "../app/lib/metaSyncWindow.ts";
 
 const source = async (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -45,7 +45,8 @@ test("deriva status success, partial e failed", () => {
 
 test("contrato mantém token expirado como falha global e isola erro individual", async () => {
   const code = await source("app/lib/metaInsightsSync.ts");
-  assert.match(code, /new MetaSyncGlobalError\("Conexão Meta expirada"/);
+  assert.match(code, /escolherTokenMeta\(\s*process\.env\.META_SYSTEM_USER_TOKEN/);
+  assert.match(code, /"erro" in escolha\)[\s\S]*?new MetaSyncGlobalError\(escolha\.erro/);
   assert.match(code, /new MetaSyncGlobalError\("Conexão Meta inválida"/);
   assert.match(code, /graph\.facebook\.com\/\$\{META_GRAPH_VERSION\}\/me/);
   assert.match(code, /for \(const client[\s\S]*?try \{[\s\S]*?syncClient[\s\S]*?catch \{/);
@@ -71,4 +72,16 @@ test("rota Cron falha fechada no próprio handler", async () => {
   const route = await source("app/api/cron/meta-sync/route.ts");
   assert.match(route, /isValidCronAuthorization/);
   assert.match(route, /status: 401/);
+});
+
+test("token fixo da Vercel vale antes da conexão salva, que segue a regra de validade", () => {
+  const agora = new Date("2026-11-11T09:15:00.000Z");
+  const vencida = { access_token: "antigo", expires_at: "2026-11-10T00:00:00.000Z" };
+  assert.deepEqual(escolherTokenMeta("  fixo  ", vencida, agora), { token: "fixo" });
+  assert.deepEqual(escolherTokenMeta(undefined, vencida, agora), { erro: "Conexão Meta expirada" });
+  assert.deepEqual(escolherTokenMeta("", null, agora), { erro: "Conexão Meta indisponível" });
+  assert.deepEqual(
+    escolherTokenMeta(undefined, { access_token: "salvo", expires_at: null }, agora),
+    { token: "salvo" },
+  );
 });

@@ -12,3 +12,18 @@ export function isMetaSyncEligible(client: {
 }) {
   return Boolean(client.meta_account_id) && client.status_pagamento !== "cancelado";
 }
+
+type ConexaoMetaSalva = { access_token: string | null; expires_at: string | null } | null;
+
+// Token de usuário do sistema (META_SYSTEM_USER_TOKEN na Vercel) não expira e vale antes da conexão salva.
+export function escolherTokenMeta(
+  tokenFixo: string | undefined,
+  conexao: ConexaoMetaSalva,
+  agora: Date,
+): { token: string } | { erro: string } {
+  const fixo = tokenFixo?.trim();
+  if (fixo) return { token: fixo };
+  if (!conexao?.access_token) return { erro: "Conexão Meta indisponível" };
+  if (conexao.expires_at && new Date(conexao.expires_at) <= agora) return { erro: "Conexão Meta expirada" };
+  return { token: conexao.access_token };
+}

@@ -5,7 +5,7 @@ import {
   normalizeDailyAdInsight,
   type DailyAdInsight,
 } from "@/app/lib/metaInsightsData";
-import { deriveMetaSyncStatus, type MetaSyncStatus } from "@/app/lib/metaSyncPolicy";
+import { deriveMetaSyncStatus, escolherTokenMeta, type MetaSyncStatus } from "@/app/lib/metaSyncPolicy";
 
 const MAX_PAGES = 50;
 const UPSERT_BATCH_SIZE = 500;
@@ -220,12 +220,15 @@ export async function syncMetaInsights(
       .order("conectado_em", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (connectionError || !connection?.access_token) {
-      throw new MetaSyncGlobalError("Conexão Meta indisponível", runId);
+    const escolha = escolherTokenMeta(
+      process.env.META_SYSTEM_USER_TOKEN,
+      connectionError ? null : connection,
+      startedAt,
+    );
+    if ("erro" in escolha) {
+      throw new MetaSyncGlobalError(escolha.erro, runId);
     }
-    if (connection.expires_at && new Date(connection.expires_at) <= startedAt) {
-      throw new MetaSyncGlobalError("Conexão Meta expirada", runId);
-    }
+    const accessToken = escolha.token;
     const connectionCheckUrl = new URL(
       `https://graph.facebook.com/${META_GRAPH_VERSION}/me`,
     );
@@ -233,7 +236,7 @@ export async function syncMetaInsights(
     try {
       await dependencies.fetchJson<{ id?: string }>(
         connectionCheckUrl,
-        connection.access_token,
+        accessToken,
       );
     } catch {
       throw new MetaSyncGlobalError("Conexão Meta inválida", runId);
@@ -273,7 +276,7 @@ export async function syncMetaInsights(
       try {
         const result = await syncClient(
           client,
-          connection.access_token,
+          accessToken,
           params.inicio,
           params.fim,
           dependencies,
