@@ -7,15 +7,15 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: {
-    default: "Axven Digital | Estratégia, Tecnologia e Performance",
+    default: "Axven Digital | Do anúncio até a venda",
     template: "%s | Axven Digital",
   },
-  description: "Estruturas de crescimento que conectam aquisição, automação, IA, CRM, vendas e dados.",
+  description: "Método Axven: anúncio, atendimento e WhatsApp num lugar só, e você sabe qual anúncio vendeu.",
   applicationName: "Axven Digital",
-  keywords: ["Axven Digital", "marketing digital", "automação", "CRM", "inteligência artificial", "performance", "aquisição de clientes"],
+  keywords: ["Axven Digital", "Método Axven", "Axven Rastro", "anúncios", "WhatsApp", "vendas", "rastreamento de vendas"],
   openGraph: {
-    title: "Axven Digital | Crescimento não acontece por acaso. Ele é construído.",
-    description: "Estratégia, tecnologia e performance conectadas para construir crescimento.",
+    title: "Axven Digital | Do anúncio até a venda",
+    description: "Método Axven: anúncio, atendimento e WhatsApp num lugar só, e você sabe qual anúncio vendeu.",
     type: "website",
     locale: "pt_BR",
     siteName: "Axven Digital",
