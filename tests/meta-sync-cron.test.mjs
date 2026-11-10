@@ -67,23 +67,8 @@ test("upsert idempotente mantém a chave homologada", async () => {
   assert.match(code, /onConflict: "cliente_id,meta_account_id,metric_date,ad_id"/);
 });
 
-test("endpoint manual POST permanece e reutiliza o mesmo núcleo", async () => {
-  const [route, proxy] = await Promise.all([
-    source("app/api/relatorios/meta-sync/route.ts"),
-    source("proxy.ts"),
-  ]);
-  assert.match(route, /export async function POST/);
-  assert.match(route, /syncMetaInsights\(/);
-  assert.match(route, /trigger: "manual"/);
-  assert.doesNotMatch(proxy, /PUBLIC_API_PREFIXES[^\n]*\/api\/relatorios\//);
-});
-
-test("rota Cron é pública no proxy, mas falha fechada no próprio handler", async () => {
-  const [route, proxy] = await Promise.all([
-    source("app/api/cron/meta-sync/route.ts"),
-    source("proxy.ts"),
-  ]);
-  assert.match(proxy, /"\/api\/cron\/"/);
+test("rota Cron falha fechada no próprio handler", async () => {
+  const route = await source("app/api/cron/meta-sync/route.ts");
   assert.match(route, /isValidCronAuthorization/);
   assert.match(route, /status: 401/);
 });

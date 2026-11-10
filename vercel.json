@@ -3,10 +3,6 @@
     {
       "path": "/api/cron/meta-sync",
       "schedule": "15 9 * * *"
-    },
-    {
-      "path": "/api/cron/lembrete-parados",
-      "schedule": "30 11 * * *"
     }
   ]
 }

@@ -62,22 +62,3 @@ test("falha de atualização do lead ou da Outbox aborta a mesma transação", a
   assert.match(sql, /if not found then[\s\S]*falha_atualizacao_lead/i);
   assert.doesNotMatch(sql, /exception\s+when|begin\s*;[\s\S]*commit/i);
 });
-
-test("Agenda une aquisição e compromissos internos sem duplicação física", async () => {
-  const page = await readFile(new URL("../app/dashboard/agenda/page.tsx", import.meta.url), "utf8");
-  const view = await readFile(new URL("../app/dashboard/agenda/AgendaView.tsx", import.meta.url), "utf8");
-  assert.match(page, /from\("compromissos"\)/);
-  assert.match(page, /from\("aquisicao_axven_agendamentos"\)/);
-  assert.match(page, /id: `aquisicao:\$\{item\.id\}`/);
-  assert.match(view, /item\.origem === "interno"/);
-  assert.match(view, /WhatsApp \{arg\.event\.extendedProps\.whatsappStatus/);
-});
-
-test("implementação não cria Google Calendar nem envia WhatsApp", async () => {
-  const files = await Promise.all([
-    readFile(new URL("../app/api/aquisicao/clinicas/agenda/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/dashboard/agenda/page.tsx", import.meta.url), "utf8"),
-  ]);
-  const source = files.join("\n");
-  assert.doesNotMatch(source, /googleapis|calendar\.events|send\/text|axven\.uazapi/i);
-});

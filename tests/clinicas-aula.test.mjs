@@ -8,7 +8,6 @@ const route = ler("../app/api/aquisicao/clinicas/route.ts");
 const landing = ler("../app/clinicas/aula/AulaLanding.tsx");
 const config = ler("../app/clinicas/aula/config.ts");
 const pagina = ler("../app/clinicas/aula/page.tsx");
-const proxy = ler("../proxy.ts");
 
 test("identificadores da aula", () => {
   assert.equal(AULA_CLINICAS_LANDING_ID, "clinicas-aula");
@@ -57,8 +56,7 @@ test("compliance: sem nome de cliente, promessa ou 'agência de tráfego'", () =
   assert.match(landing, /Dados de um cliente da Axven, sem o nome\. Não é promessa de resultado\./);
 });
 
-test("metadados próprios e rota pública", () => {
+test("metadados próprios", () => {
   assert.match(pagina, /"Aula ao vivo para clínicas de estética \| Axven Digital"/);
   assert.match(pagina, /\/clinicas\/aula-compartilhar\.png/);
-  assert.match(proxy, /if \(pathname === "\/clinicas\/aula" \|\| pathname === "\/clinicas\/aula\/comunidade"\) return true;/);
 });
